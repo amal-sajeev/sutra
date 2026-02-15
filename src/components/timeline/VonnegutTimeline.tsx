@@ -25,6 +25,8 @@ export default function VonnegutTimeline() {
   const setActiveScene = useProjectStore((s) => s.setActiveScene);
   const createCharacter = useProjectStore((s) => s.createCharacter);
   const createTimelineEvent = useProjectStore((s) => s.createTimelineEvent);
+  const updateTimelineEvent = useProjectStore((s) => s.updateTimelineEvent);
+  const deleteTimelineEvent = useProjectStore((s) => s.deleteTimelineEvent);
   const updateAppearance = useProjectStore((s) => s.updateAppearance);
   const createAppearance = useProjectStore((s) => s.createAppearance);
   const activeProjectId = useProjectStore((s) => s.activeProjectId);
@@ -39,7 +41,9 @@ export default function VonnegutTimeline() {
   const [showAddEvent, setShowAddEvent] = useState(false);
   const [newEventTitle, setNewEventTitle] = useState('');
   const [newEventPos, setNewEventPos] = useState(0.5);
+  const [newEventWidth, setNewEventWidth] = useState(0.05);
   const [newEventColor, setNewEventColor] = useState('#c4915e');
+  const [editingEventId, setEditingEventId] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -216,12 +220,19 @@ export default function VonnegutTimeline() {
       projectId: activeProjectId,
       title: newEventTitle.trim(),
       position: newEventPos,
-      width: 0.05,
+      width: newEventWidth,
       color: newEventColor,
     });
     setNewEventTitle('');
+    setNewEventPos(0.5);
+    setNewEventWidth(0.05);
     setShowAddEvent(false);
   };
+
+  /* ─── Editing event helpers ─── */
+  const editingEvent = editingEventId !== null
+    ? timelineEvents.find((e) => e.id === editingEventId) ?? null
+    : null;
 
   /* ─── Drag handlers ─── */
   const handleDragStart = useCallback(
@@ -344,11 +355,45 @@ export default function VonnegutTimeline() {
 
       {/* ──── Add event form ──── */}
       {showAddEvent && (
-        <motion.div className={styles.addForm} initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }}>
-          <input className={styles.formInput} placeholder="Event title" value={newEventTitle} onChange={(e) => setNewEventTitle(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddEvent()} autoFocus />
-          <input type="range" min={0} max={1} step={0.01} value={newEventPos} onChange={(e) => setNewEventPos(parseFloat(e.target.value))} className={styles.slider} />
-          <input type="color" value={newEventColor} onChange={(e) => setNewEventColor(e.target.value)} className={styles.colorPicker} />
-          <button className={styles.formBtn} onClick={handleAddEvent}>Add</button>
+        <motion.div className={styles.eventForm} initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }}>
+          <div className={styles.eventFormRow}>
+            <input className={styles.formInput} placeholder="Event title" value={newEventTitle} onChange={(e) => setNewEventTitle(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddEvent()} autoFocus />
+            <input type="color" value={newEventColor} onChange={(e) => setNewEventColor(e.target.value)} className={styles.colorPicker} />
+            <button className={styles.formBtn} onClick={handleAddEvent}>Add</button>
+          </div>
+          <div className={styles.eventFormRow}>
+            <span className={styles.sliderLabel}>Pos</span>
+            <input type="range" min={0} max={1} step={0.01} value={newEventPos} onChange={(e) => setNewEventPos(parseFloat(e.target.value))} className={styles.slider} />
+            <span className={styles.sliderLabel}>Width</span>
+            <input type="range" min={0.01} max={0.3} step={0.005} value={newEventWidth} onChange={(e) => setNewEventWidth(parseFloat(e.target.value))} className={styles.slider} />
+          </div>
+        </motion.div>
+      )}
+
+      {/* ──── Edit event form ──── */}
+      {editingEvent && (
+        <motion.div className={styles.eventForm} initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }}>
+          <div className={styles.eventFormRow}>
+            <input
+              className={styles.formInput}
+              value={editingEvent.title}
+              onChange={(e) => updateTimelineEvent(editingEvent.id!, { title: e.target.value })}
+            />
+            <input
+              type="color"
+              value={editingEvent.color}
+              onChange={(e) => updateTimelineEvent(editingEvent.id!, { color: e.target.value })}
+              className={styles.colorPicker}
+            />
+            <button className={styles.doneBtn} onClick={() => setEditingEventId(null)}>Done</button>
+            <button className={styles.deleteBtn} onClick={async () => { await deleteTimelineEvent(editingEvent.id!); setEditingEventId(null); }}>Delete</button>
+          </div>
+          <div className={styles.eventFormRow}>
+            <span className={styles.sliderLabel}>Pos</span>
+            <input type="range" min={0} max={1} step={0.01} value={editingEvent.position} onChange={(e) => updateTimelineEvent(editingEvent.id!, { position: parseFloat(e.target.value) })} className={styles.slider} />
+            <span className={styles.sliderLabel}>Width</span>
+            <input type="range" min={0.01} max={0.3} step={0.005} value={editingEvent.width} onChange={(e) => updateTimelineEvent(editingEvent.id!, { width: parseFloat(e.target.value) })} className={styles.slider} />
+          </div>
         </motion.div>
       )}
 
@@ -477,6 +522,7 @@ export default function VonnegutTimeline() {
           {timelineEvents.map((event) => {
             const x = posToX(event.position);
             const w = event.width * lineAreaWidth;
+            const isEditing = editingEventId === event.id;
             return (
               <g key={event.id}>
                 {/* Gradient definition */}
@@ -511,7 +557,22 @@ export default function VonnegutTimeline() {
                   fill={`url(#hatch-${event.id})`}
                   rx={4}
                 />
-                {/* Rotated event label */}
+                {/* Editing highlight outline */}
+                {isEditing && (
+                  <rect
+                    x={x - w / 2}
+                    y={plotTop - 5}
+                    width={w}
+                    height={plotHeight + 10}
+                    fill="none"
+                    stroke={event.color}
+                    strokeWidth={2}
+                    strokeDasharray="6,3"
+                    rx={4}
+                    opacity={0.8}
+                  />
+                )}
+                {/* Clickable event label */}
                 <text
                   x={x}
                   y={plotBottom + 18}
@@ -522,12 +583,60 @@ export default function VonnegutTimeline() {
                   fontFamily={mono}
                   opacity={0.9}
                   transform={`rotate(-30, ${x}, ${plotBottom + 18})`}
+                  style={{ cursor: 'pointer' }}
+                  onClick={(e) => { e.stopPropagation(); setEditingEventId(isEditing ? null : event.id!); }}
                 >
                   {event.title}
                 </text>
               </g>
             );
           })}
+
+          {/* ──── Live preview band while adding ──── */}
+          {showAddEvent && (() => {
+            const px = posToX(newEventPos);
+            const pw = newEventWidth * lineAreaWidth;
+            return (
+              <g>
+                <rect
+                  x={px - pw / 2}
+                  y={plotTop - 5}
+                  width={pw}
+                  height={plotHeight + 10}
+                  fill={newEventColor}
+                  opacity={0.1}
+                  rx={4}
+                />
+                <rect
+                  x={px - pw / 2}
+                  y={plotTop - 5}
+                  width={pw}
+                  height={plotHeight + 10}
+                  fill="none"
+                  stroke={newEventColor}
+                  strokeWidth={2}
+                  strokeDasharray="8,4"
+                  rx={4}
+                  opacity={0.7}
+                />
+                {newEventTitle && (
+                  <text
+                    x={px}
+                    y={plotBottom + 18}
+                    textAnchor="middle"
+                    fill={newEventColor}
+                    fontSize={12}
+                    fontWeight={700}
+                    fontFamily={mono}
+                    opacity={0.6}
+                    transform={`rotate(-30, ${px}, ${plotBottom + 18})`}
+                  >
+                    {newEventTitle}
+                  </text>
+                )}
+              </g>
+            );
+          })()}
           </g>
 
           {/* ──── Character lines ──── */}
