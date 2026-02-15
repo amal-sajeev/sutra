@@ -1,0 +1,272 @@
+.container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--divider);
+  flex-shrink: 0;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-primary);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.actionBtn {
+  font-size: 0.95rem;
+  padding: 7px 16px;
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  transition: all var(--transition-fast);
+}
+
+.actionBtn:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  background: var(--accent-glow);
+}
+
+/* Add forms */
+.addForm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--divider);
+  overflow: hidden;
+}
+
+.formInput {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 0.95rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.formInput:focus {
+  border-color: var(--accent-primary);
+  outline: none;
+}
+
+.colorPicker {
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  background: transparent;
+}
+
+.slider {
+  width: 80px;
+  accent-color: var(--accent-primary);
+}
+
+.formBtn {
+  padding: 8px 16px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--bg-primary);
+  background: var(--accent-primary);
+  border-radius: 4px;
+  transition: opacity var(--transition-fast);
+}
+
+.formBtn:hover {
+  opacity: 0.85;
+}
+
+/* Legend */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--divider);
+  flex-shrink: 0;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 3px;
+  transition: background var(--transition-fast);
+}
+
+.legendItem:hover,
+.legendActive {
+  background: var(--bg-panel-hover);
+}
+
+.legendDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.legendName {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+/* Scroll area */
+.scrollArea {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: auto;
+  padding: 0;
+  min-height: 0;
+  position: relative;
+}
+
+.svg {
+  display: block;
+}
+
+/* ──── Pulsing glow animation for character lines ──── */
+@keyframes lineGlow {
+  0%, 100% { filter: drop-shadow(0 0 2px var(--glow-color, currentColor)); opacity: 0.85; }
+  50%      { filter: drop-shadow(0 0 6px var(--glow-color, currentColor)); opacity: 1; }
+}
+
+.charPath {
+  animation: lineGlow 3s ease-in-out infinite;
+  transition: stroke-width 0.3s ease;
+}
+
+.charPathDim {
+  animation: none;
+  opacity: 0.18;
+  transition: opacity 0.3s ease, stroke-width 0.3s ease;
+}
+
+/* ──── Control point glow ──── */
+@keyframes dotPulse {
+  0%, 100% { filter: drop-shadow(0 0 3px var(--glow-color, currentColor)); }
+  50%      { filter: drop-shadow(0 0 8px var(--glow-color, currentColor)); }
+}
+
+.controlDot {
+  cursor: grab;
+  transition: r 0.2s ease, opacity 0.3s ease;
+}
+
+.controlDot:hover {
+  animation: dotPulse 1.5s ease-in-out infinite;
+}
+
+.controlDotDragging {
+  cursor: grabbing;
+  animation: dotPulse 0.8s ease-in-out infinite;
+}
+
+/* ──── Death marker pulse ──── */
+@keyframes deathPulse {
+  0%, 100% { filter: drop-shadow(0 0 2px #e55); opacity: 0.75; }
+  50%      { filter: drop-shadow(0 0 10px #e55); opacity: 1; }
+}
+
+.deathMark {
+  animation: deathPulse 2s ease-in-out infinite;
+}
+
+/* ──── Drag tooltip ──── */
+.dragTooltip {
+  position: absolute;
+  pointer-events: none;
+  padding: 4px 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-primary);
+  background: var(--bg-overlay);
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  white-space: nowrap;
+  z-index: 20;
+  transform: translate(-50%, -100%);
+  margin-top: -12px;
+}
+
+/* ──── Hover tooltip ──── */
+.hoverTooltip {
+  position: absolute;
+  pointer-events: none;
+  padding: 6px 14px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--text-primary);
+  background: var(--bg-overlay);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  box-shadow: var(--shadow-md);
+  white-space: nowrap;
+  z-index: 30;
+  transform: translate(-50%, -100%);
+  margin-top: -16px;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ──── Axis label ──── */
+.axisLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  fill: var(--text-tertiary);
+  user-select: none;
+}
+
+/* Empty */
+.empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.empty p {
+  font-size: 1.1rem;
+  color: var(--text-primary);
+}
+
+.emptyHint {
+  font-size: 1rem !important;
+  color: var(--text-secondary) !important;
+}

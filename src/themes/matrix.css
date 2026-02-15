@@ -1,0 +1,96 @@
+/* ==============================
+   Matrix Mode — The Matrix
+   Pure black, phosphor green,
+   CRT scanlines, digital rain
+   ============================== */
+
+[data-theme='matrix'] {
+  /* Base palette */
+  --bg-primary: #000000;
+  --bg-secondary: #060a06;
+  --bg-tertiary: #0c120c;
+  --bg-panel: rgba(0, 15, 0, 0.9);
+  --bg-panel-hover: rgba(0, 30, 0, 0.95);
+  --bg-overlay: rgba(0, 5, 0, 0.97);
+  --bg-elevated: rgba(0, 25, 0, 0.7);
+
+  /* Text — much brighter across the board */
+  --text-primary: #00ff41;
+  --text-secondary: #00ee38;
+  --text-tertiary: #00cc33;
+  --text-muted: #00aa2a;
+
+  /* Accents */
+  --accent-primary: #00ff41;
+  --accent-secondary: #00ee38;
+  --accent-warm: #33ff66;
+  --accent-warm-glow: rgba(51, 255, 102, 0.25);
+  --accent-glow: rgba(0, 255, 65, 0.2);
+
+  /* Borders & Dividers — more visible */
+  --border-color: rgba(0, 255, 65, 0.2);
+  --border-active: rgba(0, 255, 65, 0.45);
+  --divider: rgba(0, 255, 65, 0.15);
+
+  /* Shadows — green glow */
+  --shadow-sm: 0 0 5px rgba(0, 255, 65, 0.08);
+  --shadow-md: 0 0 15px rgba(0, 255, 65, 0.12);
+  --shadow-lg: 0 0 30px rgba(0, 255, 65, 0.16);
+  --shadow-glow: 0 0 20px rgba(0, 255, 65, 0.25);
+
+  /* Shimmer */
+  --shimmer-gradient: linear-gradient(
+    135deg,
+    rgba(0, 255, 65, 0.04) 0%,
+    rgba(0, 255, 65, 0.02) 50%,
+    rgba(0, 255, 65, 0.04) 100%
+  );
+
+  /* Window chrome */
+  --chrome-bg: linear-gradient(180deg, #0c120c 0%, #060a06 100%);
+  --chrome-border: rgba(0, 255, 65, 0.25);
+  --chrome-radius: 2px;
+
+  /* Editor */
+  --editor-bg: rgba(0, 5, 0, 0.4);
+  --editor-text: #00ff41;
+  --editor-caret: #00ff41;
+  --editor-selection: rgba(0, 255, 65, 0.2);
+  --editor-line-highlight: rgba(0, 255, 65, 0.04);
+  --editor-font: 'JetBrains Mono', 'Courier New', monospace;
+
+  /* Heat map (binder) */
+  --heat-hot: rgba(0, 255, 65, 0.5);
+  --heat-warm: rgba(0, 255, 65, 0.3);
+  --heat-cool: rgba(0, 255, 65, 0.12);
+  --heat-cold: transparent;
+
+  /* Scrollbar */
+  --scrollbar-thumb: rgba(0, 255, 65, 0.2);
+  --scrollbar-thumb-hover: rgba(0, 255, 65, 0.4);
+  --scrollbar-track: transparent;
+
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-base: 250ms ease;
+  --transition-slow: 400ms ease;
+  --transition-theme: 600ms ease;
+
+  /* Constellation */
+  --node-glow: rgba(0, 255, 65, 0.6);
+  --node-fill: #00ff41;
+  --node-stroke: rgba(0, 255, 65, 0.8);
+  --link-color: rgba(0, 255, 65, 0.2);
+
+  /* Timeline */
+  --timeline-bg: rgba(0, 8, 0, 0.4);
+  --timeline-grid: rgba(0, 255, 65, 0.08);
+  --timeline-axis: rgba(0, 255, 65, 0.3);
+
+  /* Scanline overlay */
+  --scanline-opacity: 0.03;
+
+  /* Focus/Zen mode */
+  --zen-overlay: rgba(0, 0, 0, 0.92);
+  --zen-active: rgba(0, 10, 0, 0.97);
+}

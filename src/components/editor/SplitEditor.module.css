@@ -1,0 +1,12 @@
+.splitPane {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+  position: relative;
+}
+
+.divider {
+  width: 1px;
+  background: var(--divider);
+  flex-shrink: 0;
+}

@@ -1,0 +1,154 @@
+.container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--divider);
+  flex-shrink: 0;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-primary);
+}
+
+.count {
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.svgWrap {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.svg {
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  background: var(--bg-secondary);
+}
+
+.svg:active {
+  cursor: grabbing;
+}
+
+/* HTML hover tooltip — uses real CSS pixels */
+.hoverTooltip {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  padding: 8px 16px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--bg-overlay);
+  border: 1px solid var(--border-active);
+  border-radius: 6px;
+  box-shadow: var(--shadow-md);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 20;
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Detail panel */
+.detail {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--bg-overlay);
+  border-top: 1px solid var(--border-color);
+  backdrop-filter: blur(10px);
+}
+
+.detailContent {
+  padding: 14px 16px;
+}
+
+.detailContent p {
+  font-size: 1rem;
+  color: var(--text-primary);
+  line-height: 1.6;
+  margin-bottom: 8px;
+}
+
+.tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.tag {
+  font-size: 0.9rem;
+  padding: 4px 12px;
+  border-radius: 10px;
+  background: var(--accent-glow);
+  color: var(--accent-primary);
+  font-weight: 500;
+}
+
+.detailMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+}
+
+.deleteBtn {
+  font-size: 0.95rem;
+  color: #e55;
+  padding: 4px 12px;
+  border-radius: 3px;
+  transition: background var(--transition-fast);
+}
+
+.deleteBtn:hover {
+  background: rgba(238, 85, 85, 0.1);
+}
+
+/* Empty state */
+.empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.empty p {
+  font-size: 1.1rem;
+  color: var(--text-primary);
+}
+
+.emptyHint {
+  font-size: 1rem !important;
+  color: var(--text-secondary) !important;
+}

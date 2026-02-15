@@ -1,0 +1,17 @@
+.btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 5px;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.btn:hover {
+  color: var(--accent-primary);
+  background: var(--accent-glow);
+}

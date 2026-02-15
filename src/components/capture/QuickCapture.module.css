@@ -1,0 +1,111 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.capture {
+  position: fixed;
+  z-index: 1501;
+  width: 420px;
+  max-width: 90vw;
+  overflow: hidden;
+}
+
+/* Lain mode — translucent floating card from right */
+.lain {
+  top: 80px;
+  right: 24px;
+  background: var(--bg-overlay);
+  border: 1px solid var(--border-color);
+  border-radius: var(--chrome-radius);
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(12px);
+}
+
+.lainHeader {
+  padding: 12px 16px 4px;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+/* Matrix mode — terminal prompt from top */
+.matrix {
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 5, 0, 0.95);
+  border: 1px solid rgba(0, 255, 65, 0.2);
+  border-radius: 2px;
+  box-shadow: 0 0 30px rgba(0, 255, 65, 0.1);
+}
+
+.matrixPrompt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px 2px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.9rem;
+  color: rgba(0, 255, 65, 0.7);
+}
+
+.promptChar {
+  color: var(--accent-primary);
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+.promptLabel {
+  letter-spacing: 0.1em;
+}
+
+/* Input */
+.inputArea {
+  padding: 8px 14px;
+}
+
+.input {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 0.95rem;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  border-radius: 0;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.matrix .input {
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--accent-primary);
+  border-bottom-color: rgba(0, 255, 65, 0.15);
+}
+
+.input::placeholder {
+  color: var(--text-muted);
+}
+
+.input:focus {
+  border-bottom-color: var(--accent-primary);
+}
+
+/* Hint */
+.hint {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 14px 10px;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.matrix .hint {
+  font-family: 'JetBrains Mono', monospace;
+}

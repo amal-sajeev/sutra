@@ -1,0 +1,97 @@
+/* ==============================
+   Lain Mode — NAVI Copland OS
+   Muted grays, soft teal/seafoam,
+   warm amber highlights, layered depth
+   ============================== */
+
+[data-theme='lain'] {
+  /* Base palette */
+  --bg-primary: #f0ede8;
+  --bg-secondary: #e8e4de;
+  --bg-tertiary: #ddd8d0;
+  --bg-panel: rgba(232, 228, 222, 0.85);
+  --bg-panel-hover: rgba(221, 216, 208, 0.92);
+  --bg-overlay: rgba(240, 237, 232, 0.95);
+  --bg-elevated: rgba(255, 255, 255, 0.7);
+
+  /* Text */
+  --text-primary: #2c2a26;
+  --text-secondary: #5c584f;
+  --text-tertiary: #8a857a;
+  --text-muted: #b0aa9e;
+
+  /* Accents */
+  --accent-primary: #5a9e9e;
+  --accent-secondary: #7ab8b8;
+  --accent-warm: #c4915e;
+  --accent-warm-glow: rgba(196, 145, 94, 0.3);
+  --accent-glow: rgba(90, 158, 158, 0.25);
+
+  /* Borders & Dividers */
+  --border-color: rgba(44, 42, 38, 0.12);
+  --border-active: rgba(90, 158, 158, 0.4);
+  --divider: rgba(44, 42, 38, 0.08);
+
+  /* Shadows — layered depth */
+  --shadow-sm: 0 1px 3px rgba(44, 42, 38, 0.06), 0 1px 2px rgba(44, 42, 38, 0.04);
+  --shadow-md: 0 4px 12px rgba(44, 42, 38, 0.08), 0 2px 4px rgba(44, 42, 38, 0.04);
+  --shadow-lg: 0 8px 30px rgba(44, 42, 38, 0.1), 0 4px 8px rgba(44, 42, 38, 0.06);
+  --shadow-glow: 0 0 20px rgba(90, 158, 158, 0.15);
+
+  /* Iridescent edge shimmer */
+  --shimmer-gradient: linear-gradient(
+    135deg,
+    rgba(90, 158, 158, 0.1) 0%,
+    rgba(196, 145, 94, 0.08) 50%,
+    rgba(122, 184, 184, 0.1) 100%
+  );
+
+  /* Window chrome */
+  --chrome-bg: linear-gradient(180deg, #e8e4de 0%, #ddd8d0 100%);
+  --chrome-border: rgba(44, 42, 38, 0.15);
+  --chrome-radius: 10px;
+
+  /* Editor */
+  --editor-bg: rgba(255, 255, 255, 0.5);
+  --editor-text: #2c2a26;
+  --editor-caret: #5a9e9e;
+  --editor-selection: rgba(90, 158, 158, 0.2);
+  --editor-line-highlight: rgba(90, 158, 158, 0.05);
+  --editor-font: 'Lora', Georgia, serif;
+
+  /* Heat map (binder) */
+  --heat-hot: rgba(196, 145, 94, 0.5);
+  --heat-warm: rgba(196, 145, 94, 0.25);
+  --heat-cool: rgba(90, 158, 158, 0.1);
+  --heat-cold: transparent;
+
+  /* Scrollbar */
+  --scrollbar-thumb: rgba(44, 42, 38, 0.15);
+  --scrollbar-thumb-hover: rgba(44, 42, 38, 0.25);
+  --scrollbar-track: transparent;
+
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-base: 250ms ease;
+  --transition-slow: 400ms ease;
+  --transition-theme: 600ms ease;
+
+  /* Constellation */
+  --node-glow: rgba(90, 158, 158, 0.4);
+  --node-fill: #5a9e9e;
+  --node-stroke: rgba(90, 158, 158, 0.6);
+  --link-color: rgba(90, 158, 158, 0.15);
+
+  /* Timeline */
+  --timeline-bg: rgba(255, 255, 255, 0.4);
+  --timeline-grid: rgba(44, 42, 38, 0.06);
+  --timeline-axis: rgba(44, 42, 38, 0.2);
+
+  /* Wired background pattern */
+  --wired-color: rgba(90, 158, 158, 0.04);
+  --wired-pulse: rgba(90, 158, 158, 0.08);
+
+  /* Focus/Zen mode */
+  --zen-overlay: rgba(240, 237, 232, 0.85);
+  --zen-active: rgba(255, 255, 255, 0.95);
+}

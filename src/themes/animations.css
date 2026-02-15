@@ -1,0 +1,186 @@
+/* ==============================
+   Shared Animations & Effects
+   ============================== */
+
+/* Scanline overlay — Matrix mode only */
+[data-theme='matrix'] .app-shell::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.03) 2px,
+    rgba(0, 0, 0, 0.03) 4px
+  );
+  opacity: var(--scanline-opacity, 0.03);
+}
+
+/* CRT vignette — Matrix mode */
+[data-theme='matrix'] .app-shell::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9998;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 60%,
+    rgba(0, 0, 0, 0.4) 100%
+  );
+}
+
+/* Wired circuit-line background — Lain mode */
+[data-theme='lain'] .app-shell::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.35;
+  background-image:
+    linear-gradient(var(--wired-color) 1px, transparent 1px),
+    linear-gradient(90deg, var(--wired-color) 1px, transparent 1px);
+  background-size: 80px 80px;
+  animation: wiredPulse 8s ease-in-out infinite;
+}
+
+@keyframes wiredPulse {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 0.4; }
+}
+
+/* Typewriter text reveal — Matrix mode */
+@keyframes typeIn {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+[data-theme='matrix'] .type-reveal {
+  animation: typeIn 0.3s ease forwards;
+}
+
+/* Glitch effect for transitions — Matrix mode */
+@keyframes glitch {
+  0% { transform: translate(0); }
+  10% { transform: translate(-2px, 1px); }
+  20% { transform: translate(2px, -1px); }
+  30% { transform: translate(-1px, 2px); }
+  40% { transform: translate(1px, -2px); }
+  50% { transform: translate(-2px, 0); }
+  60% { transform: translate(2px, 1px); }
+  70% { transform: translate(0, -1px); }
+  80% { transform: translate(-1px, 0); }
+  90% { transform: translate(1px, 1px); }
+  100% { transform: translate(0); }
+}
+
+.glitch {
+  animation: glitch 0.3s ease;
+}
+
+/* Phosphor glow — text/cursor */
+@keyframes phosphorGlow {
+  0%, 100% { text-shadow: 0 0 5px rgba(0, 255, 65, 0.3); }
+  50% { text-shadow: 0 0 15px rgba(0, 255, 65, 0.5), 0 0 30px rgba(0, 255, 65, 0.2); }
+}
+
+[data-theme='matrix'] .phosphor {
+  animation: phosphorGlow 3s ease-in-out infinite;
+}
+
+/* Soft glow pulse — Lain mode */
+@keyframes softGlow {
+  0%, 100% { box-shadow: 0 0 10px rgba(90, 158, 158, 0.1); }
+  50% { box-shadow: 0 0 20px rgba(90, 158, 158, 0.2); }
+}
+
+[data-theme='lain'] .glow-pulse {
+  animation: softGlow 4s ease-in-out infinite;
+}
+
+/* Node/constellation pulse */
+@keyframes nodePulse {
+  0%, 100% { r: 5; opacity: 0.8; }
+  50% { r: 7; opacity: 1; }
+}
+
+/* Fade in up — general entry */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.4s ease forwards;
+}
+
+/* Fade in scale — for modals/overlays */
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.fade-in-scale {
+  animation: fadeInScale 0.3s ease forwards;
+}
+
+/* Blink cursor — Matrix terminal */
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+.cursor-blink {
+  animation: blink 1s step-end infinite;
+}
+
+/* Smooth scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+/* Chromatic aberration — Matrix panels */
+[data-theme='matrix'] .chromatic {
+  position: relative;
+}
+
+[data-theme='matrix'] .chromatic::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow:
+    -1px 0 0 rgba(255, 0, 0, 0.06),
+    1px 0 0 rgba(0, 100, 255, 0.06);
+}
