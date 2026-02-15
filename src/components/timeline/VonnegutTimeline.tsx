@@ -395,6 +395,10 @@ export default function VonnegutTimeline() {
           style={{ cursor: dragId ? 'grabbing' : undefined }}
         >
           <defs>
+            {/* Clip path to keep line-area content from bleeding into the label column */}
+            <clipPath id="lineAreaClip">
+              <rect x={leftMargin} y={0} width={timelineWidth - leftMargin} height={timelineHeight} />
+            </clipPath>
             {/* Glow filters per character */}
             {characters.map((char) => (
               <filter key={char.id} id={`glow-${char.id}`} x="-50%" y="-50%" width="200%" height="200%">
@@ -468,7 +472,8 @@ export default function VonnegutTimeline() {
             </g>
           ))}
 
-          {/* ──── Event bands with gradient ──── */}
+          {/* ──── Event bands with gradient (clipped to line area) ──── */}
+          <g clipPath="url(#lineAreaClip)">
           {timelineEvents.map((event) => {
             const x = posToX(event.position);
             const w = event.width * lineAreaWidth;
@@ -523,6 +528,7 @@ export default function VonnegutTimeline() {
               </g>
             );
           })}
+          </g>
 
           {/* ──── Character lines ──── */}
           {charPaths.map((cp) => {
