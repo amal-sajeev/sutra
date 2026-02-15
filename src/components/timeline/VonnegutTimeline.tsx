@@ -31,6 +31,7 @@ export default function VonnegutTimeline() {
   const theme = useUIStore((s) => s.theme);
 
   const [hoveredChar, setHoveredChar] = useState<number | null>(null);
+  const [selectedCharId, setSelectedCharId] = useState<number | null>(null);
   const [hoverInfo, setHoverInfo] = useState<{ x: number; y: number; text: string } | null>(null);
   const [showAddChar, setShowAddChar] = useState(false);
   const [newCharName, setNewCharName] = useState('');
@@ -63,6 +64,17 @@ export default function VonnegutTimeline() {
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  /* ─── Auto-select first character if none selected ─── */
+  useEffect(() => {
+    if (characters.length > 0 && selectedCharId === null) {
+      setSelectedCharId(characters[0].id!);
+    }
+    // Clear selection if the selected character was deleted
+    if (selectedCharId !== null && !characters.find((c) => c.id === selectedCharId)) {
+      setSelectedCharId(characters.length > 0 ? characters[0].id! : null);
+    }
+  }, [characters, selectedCharId]);
 
   /* ─── Left margin for character labels ─── */
   const leftMargin = useMemo(() => {
@@ -132,7 +144,8 @@ export default function VonnegutTimeline() {
   /* ─── Build character paths using fortune for Y ─── */
   const charPaths = useMemo(() => {
     if (characters.length === 0) return [];
-    return characters.map((char) => {
+    const n = characters.length;
+    return characters.map((char, idx) => {
       let charApps = appearances
         .filter((a) => a.characterId === char.id)
         .sort((a, b) => a.position - b.position);
@@ -153,22 +166,28 @@ export default function VonnegutTimeline() {
         appearance: app,
       }));
 
-      // If no appearances, draw a neutral line
+      // If no appearances, spread characters evenly across the fortune range
+      // so their default lines don't all overlap at 0.5
       if (points.length === 0) {
-        const neutralY = fortuneToY(0.5);
+        const spread = n > 1 ? 0.2 + (0.6 * (n - 1 - idx)) / (n - 1) : 0.5;
+        const defaultY = fortuneToY(spread);
         return {
           character: char,
           points: [
-            { x: leftMargin, y: neutralY, appearance: null as unknown as CharacterAppearance },
-            { x: timelineWidth, y: neutralY, appearance: null as unknown as CharacterAppearance },
+            { x: leftMargin, y: defaultY, appearance: null as unknown as CharacterAppearance },
+            { x: timelineWidth, y: defaultY, appearance: null as unknown as CharacterAppearance },
           ],
           hasData: false,
+          defaultFortune: spread,
         };
       }
 
-      return { character: char, points, hasData: true };
+      return { character: char, points, hasData: true, defaultFortune: undefined as number | undefined };
     });
   }, [characters, appearances, posToX, fortuneToY, leftMargin, timelineWidth, dragId, dragPos]);
+
+  /* ─── Check if any characters lack appearance data ─── */
+  const hasAnyAppearances = charPaths.some((cp) => cp.hasData);
 
   /* ─── SVG path builder (smooth bezier curves) ─── */
   const buildPath = (points: { x: number; y: number }[]) => {
@@ -248,45 +267,23 @@ export default function VonnegutTimeline() {
     setDragPos(null);
   }, [dragPos, updateAppearance]);
 
-  /* ─── Double-click to add appearance ─── */
+  /* ─── Double-click to add appearance for the selected character ─── */
   const handleDoubleClick = useCallback(
     async (e: React.MouseEvent<SVGSVGElement>) => {
-      if (!activeProjectId || characters.length === 0) return;
+      if (!activeProjectId || !selectedCharId) return;
       const { x, y } = svgPoint(e.clientX, e.clientY);
       const pos = xToPos(x);
       const fort = yToFortune(y);
 
-      // Find nearest character line
-      let nearestCharId = characters[0].id!;
-      let nearestDist = Infinity;
-      for (const cp of charPaths) {
-        if (!cp.hasData) continue;
-        for (const pt of cp.points) {
-          const d = Math.abs(pt.y - (plotBottom - fort * plotHeight));
-          if (d < nearestDist) {
-            nearestDist = d;
-            nearestCharId = cp.character.id!;
-          }
-        }
-        // Also check the fortune-mapped Y for this character's average fortune
-        const avgY =
-          cp.points.reduce((sum, p) => sum + p.y, 0) / cp.points.length;
-        const d = Math.abs(avgY - (plotBottom - fort * plotHeight));
-        if (d < nearestDist) {
-          nearestDist = d;
-          nearestCharId = cp.character.id!;
-        }
-      }
-
       await createAppearance({
-        characterId: nearestCharId,
+        characterId: selectedCharId,
         projectId: activeProjectId,
         position: Math.round(pos * 1000) / 1000,
         fortune: Math.round(fort * 1000) / 1000,
         note: '',
       });
     },
-    [activeProjectId, characters, charPaths, svgPoint, xToPos, yToFortune, plotBottom, plotHeight, createAppearance]
+    [activeProjectId, selectedCharId, svgPoint, xToPos, yToFortune, createAppearance]
   );
 
   /* ─── Hover on control points ─── */
@@ -355,20 +352,32 @@ export default function VonnegutTimeline() {
         </motion.div>
       )}
 
-      {/* ──── Legend ──── */}
+      {/* ──── Legend — click to select active character ──── */}
       {characters.length > 0 && (
         <div className={styles.legend}>
-          {characters.map((char) => (
-            <div
-              key={char.id}
-              className={`${styles.legendItem} ${hoveredChar === char.id ? styles.legendActive : ''}`}
-              onMouseEnter={() => setHoveredChar(char.id!)}
-              onMouseLeave={() => setHoveredChar(null)}
-            >
-              <span className={styles.legendDot} style={{ backgroundColor: char.color }} />
-              <span className={styles.legendName}>{char.name}</span>
-            </div>
-          ))}
+          {characters.map((char) => {
+            const isSelected = selectedCharId === char.id;
+            return (
+              <div
+                key={char.id}
+                className={`${styles.legendItem} ${isSelected ? styles.legendSelected : ''} ${hoveredChar === char.id ? styles.legendActive : ''}`}
+                onClick={() => setSelectedCharId(char.id!)}
+                onMouseEnter={() => setHoveredChar(char.id!)}
+                onMouseLeave={() => setHoveredChar(null)}
+                style={isSelected ? { borderColor: char.color } : undefined}
+              >
+                <span className={styles.legendDot} style={{ backgroundColor: char.color }} />
+                <span className={styles.legendName}>{char.name}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ──── Hint when characters exist but have no timeline data ──── */}
+      {characters.length > 0 && !hasAnyAppearances && (
+        <div className={styles.hint}>
+          Select a character above, then double-click on the timeline to add story points. Drag points to adjust.
         </div>
       )}
 
@@ -517,7 +526,10 @@ export default function VonnegutTimeline() {
 
           {/* ──── Character lines ──── */}
           {charPaths.map((cp) => {
-            const isHighlighted = hoveredChar === null || hoveredChar === cp.character.id;
+            const isHovered = hoveredChar === cp.character.id;
+            const isSelected = selectedCharId === cp.character.id;
+            const isHighlighted = hoveredChar === null ? true : isHovered;
+            const isActive = isSelected || isHovered; // extra emphasis
             const pathD = buildPath(cp.points);
 
             return (
@@ -548,8 +560,8 @@ export default function VonnegutTimeline() {
                     d={pathD}
                     fill="none"
                     stroke={cp.character.color}
-                    strokeWidth={6}
-                    opacity={0.15}
+                    strokeWidth={isActive ? 10 : 6}
+                    opacity={isActive ? 0.2 : 0.12}
                     strokeLinecap="round"
                     filter={`url(#glow-${cp.character.id})`}
                   />
@@ -560,7 +572,7 @@ export default function VonnegutTimeline() {
                   d={pathD}
                   fill="none"
                   stroke={cp.character.color}
-                  strokeWidth={isHighlighted ? 2.5 : 1.5}
+                  strokeWidth={isActive ? 3 : isHighlighted ? 2.5 : 1.5}
                   strokeLinecap="round"
                   className={isHighlighted ? styles.charPath : styles.charPathDim}
                   style={{ '--glow-color': cp.character.color } as React.CSSProperties}
