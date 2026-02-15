@@ -118,7 +118,8 @@
 }
 
 .slider {
-  width: 80px;
+  flex: 1;
+  min-width: 120px;
   accent-color: var(--accent-primary);
 }
 

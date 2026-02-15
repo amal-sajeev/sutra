@@ -326,6 +326,20 @@ export default function VonnegutTimeline() {
 
   const mono = theme === 'matrix' ? "'JetBrains Mono'" : "'Inter'";
 
+  /* ─── Mouse wheel fine adjustment for sliders ─── */
+  const sliderWheel = (
+    e: React.WheelEvent<HTMLInputElement>,
+    value: number,
+    setValue: (v: number) => void,
+    step: number,
+    min: number,
+    max: number
+  ) => {
+    e.preventDefault();
+    const delta = e.deltaY < 0 ? step : -step;
+    setValue(Math.round(Math.max(min, Math.min(max, value + delta)) * 1000) / 1000);
+  };
+
   return (
     <div className={styles.container}>
       {/* ──── Header ──── */}
@@ -363,9 +377,9 @@ export default function VonnegutTimeline() {
           </div>
           <div className={styles.eventFormRow}>
             <span className={styles.sliderLabel}>Pos</span>
-            <input type="range" min={0} max={1} step={0.01} value={newEventPos} onChange={(e) => setNewEventPos(parseFloat(e.target.value))} className={styles.slider} />
+            <input type="range" min={0} max={1} step={0.01} value={newEventPos} onChange={(e) => setNewEventPos(parseFloat(e.target.value))} onWheel={(e) => sliderWheel(e, newEventPos, setNewEventPos, 0.01, 0, 1)} className={styles.slider} />
             <span className={styles.sliderLabel}>Width</span>
-            <input type="range" min={0.01} max={0.3} step={0.005} value={newEventWidth} onChange={(e) => setNewEventWidth(parseFloat(e.target.value))} className={styles.slider} />
+            <input type="range" min={0.01} max={0.3} step={0.005} value={newEventWidth} onChange={(e) => setNewEventWidth(parseFloat(e.target.value))} onWheel={(e) => sliderWheel(e, newEventWidth, setNewEventWidth, 0.005, 0.01, 0.3)} className={styles.slider} />
           </div>
         </motion.div>
       )}
@@ -390,9 +404,9 @@ export default function VonnegutTimeline() {
           </div>
           <div className={styles.eventFormRow}>
             <span className={styles.sliderLabel}>Pos</span>
-            <input type="range" min={0} max={1} step={0.01} value={editingEvent.position} onChange={(e) => updateTimelineEvent(editingEvent.id!, { position: parseFloat(e.target.value) })} className={styles.slider} />
+            <input type="range" min={0} max={1} step={0.01} value={editingEvent.position} onChange={(e) => updateTimelineEvent(editingEvent.id!, { position: parseFloat(e.target.value) })} onWheel={(e) => sliderWheel(e, editingEvent.position, (v) => updateTimelineEvent(editingEvent.id!, { position: v }), 0.01, 0, 1)} className={styles.slider} />
             <span className={styles.sliderLabel}>Width</span>
-            <input type="range" min={0.01} max={0.3} step={0.005} value={editingEvent.width} onChange={(e) => updateTimelineEvent(editingEvent.id!, { width: parseFloat(e.target.value) })} className={styles.slider} />
+            <input type="range" min={0.01} max={0.3} step={0.005} value={editingEvent.width} onChange={(e) => updateTimelineEvent(editingEvent.id!, { width: parseFloat(e.target.value) })} onWheel={(e) => sliderWheel(e, editingEvent.width, (v) => updateTimelineEvent(editingEvent.id!, { width: v }), 0.005, 0.01, 0.3)} className={styles.slider} />
           </div>
         </motion.div>
       )}
