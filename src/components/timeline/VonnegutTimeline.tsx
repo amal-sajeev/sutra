@@ -8,13 +8,16 @@ import type { CharacterAppearance } from '../../types';
 
 /* ─── Layout constants ─── */
 const PADDING_TOP = 70;
-const PADDING_BOTTOM = 65;
+const PADDING_BOTTOM = 80;
 const LABEL_GAP = 18;
 const LABEL_PAD_LEFT = 10;
 const LABEL_FONT_SIZE = 15;
 const CHAR_PX_WIDTH = 9.5;
-const AXIS_LABEL_X = 10; // fortune axis label inset from the line area
-const FORTUNE_GRID = [0.25, 0.5, 0.75]; // horizontal guide lines
+const AXIS_LABEL_X = 10;
+const FORTUNE_GRID = [0.25, 0.5, 0.75];
+const EVENT_LABEL_BASE_Y = 20;   // first label row offset below plotBottom
+const EVENT_LABEL_ROW_H = 16;    // height per stagger row
+const EVENT_LABEL_MIN_GAP = 70;  // min px between labels before staggering
 
 export default function VonnegutTimeline() {
   const chapters = useProjectStore((s) => s.chapters);
@@ -47,10 +50,14 @@ export default function VonnegutTimeline() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
-  /* ─── Drag state ─── */
+  /* ─── Appearance drag state ─── */
   const [dragId, setDragId] = useState<number | null>(null);
   const [dragPos, setDragPos] = useState<{ position: number; fortune: number } | null>(null);
   const dragStartRef = useRef<{ id: number; startPos: number; startFortune: number } | null>(null);
+
+  /* ─── Event drag state ─── */
+  const [dragEventId, setDragEventId] = useState<number | null>(null);
+  const [dragEventPos, setDragEventPos] = useState<number | null>(null);
 
   /* ─── Container size tracking ─── */
   const [containerW, setContainerW] = useState(600);
@@ -74,7 +81,6 @@ export default function VonnegutTimeline() {
     if (characters.length > 0 && selectedCharId === null) {
       setSelectedCharId(characters[0].id!);
     }
-    // Clear selection if the selected character was deleted
     if (selectedCharId !== null && !characters.find((c) => c.id === selectedCharId)) {
       setSelectedCharId(characters.length > 0 ? characters[0].id! : null);
     }
@@ -103,7 +109,7 @@ export default function VonnegutTimeline() {
     [leftMargin, lineAreaWidth]
   );
   const fortuneToY = useCallback(
-    (f: number) => plotBottom - f * plotHeight, // 1 = top, 0 = bottom
+    (f: number) => plotBottom - f * plotHeight,
     [plotBottom, plotHeight]
   );
   const svgPoint = useCallback(
@@ -154,7 +160,6 @@ export default function VonnegutTimeline() {
         .filter((a) => a.characterId === char.id)
         .sort((a, b) => a.position - b.position);
 
-      // Apply live drag override
       if (dragId !== null && dragPos) {
         charApps = charApps.map((a) =>
           a.id === dragId
@@ -170,8 +175,6 @@ export default function VonnegutTimeline() {
         appearance: app,
       }));
 
-      // If no appearances, spread characters evenly across the fortune range
-      // so their default lines don't all overlap at 0.5
       if (points.length === 0) {
         const spread = n > 1 ? 0.2 + (0.6 * (n - 1 - idx)) / (n - 1) : 0.5;
         const defaultY = fortuneToY(spread);
@@ -190,8 +193,32 @@ export default function VonnegutTimeline() {
     });
   }, [characters, appearances, posToX, fortuneToY, leftMargin, timelineWidth, dragId, dragPos]);
 
-  /* ─── Check if any characters lack appearance data ─── */
   const hasAnyAppearances = charPaths.some((cp) => cp.hasData);
+
+  /* ─── Event label collision avoidance ─── */
+  const eventLabelRows = useMemo(() => {
+    const rows = new Map<number, number>();
+    const sorted = [...timelineEvents]
+      .map((evt) => ({
+        id: evt.id!,
+        x: posToX(dragEventId === evt.id && dragEventPos !== null ? dragEventPos : evt.position),
+      }))
+      .sort((a, b) => a.x - b.x);
+
+    const occupied: { x: number; row: number }[] = [];
+    for (const item of sorted) {
+      let row = 0;
+      for (const prev of occupied) {
+        if (Math.abs(item.x - prev.x) < EVENT_LABEL_MIN_GAP && prev.row === row) {
+          row++;
+          if (row > 2) row = 0; // cycle through 3 rows max
+        }
+      }
+      rows.set(item.id, row);
+      occupied.push({ x: item.x, row });
+    }
+    return rows;
+  }, [timelineEvents, posToX, dragEventId, dragEventPos]);
 
   /* ─── SVG path builder (smooth bezier curves) ─── */
   const buildPath = (points: { x: number; y: number }[]) => {
@@ -229,12 +256,11 @@ export default function VonnegutTimeline() {
     setShowAddEvent(false);
   };
 
-  /* ─── Editing event helpers ─── */
   const editingEvent = editingEventId !== null
     ? timelineEvents.find((e) => e.id === editingEventId) ?? null
     : null;
 
-  /* ─── Drag handlers ─── */
+  /* ─── Appearance drag handlers ─── */
   const handleDragStart = useCallback(
     (e: React.MouseEvent, app: CharacterAppearance) => {
       e.stopPropagation();
@@ -250,35 +276,58 @@ export default function VonnegutTimeline() {
     []
   );
 
-  const handleDragMove = useCallback(
-    (e: React.MouseEvent) => {
-      if (!dragStartRef.current) return;
-      const { x, y } = svgPoint(e.clientX, e.clientY);
-      const pos = xToPos(x);
-      const fort = yToFortune(y);
-      setDragPos({ position: pos, fortune: fort });
+  /* ─── Event drag handlers ─── */
+  const handleEventDragStart = useCallback(
+    (e: React.MouseEvent, eventId: number, currentPos: number) => {
+      e.stopPropagation();
+      e.preventDefault();
+      setDragEventId(eventId);
+      setDragEventPos(currentPos);
     },
-    [svgPoint, xToPos, yToFortune]
+    []
   );
 
-  const handleDragEnd = useCallback(async () => {
-    if (!dragStartRef.current || !dragPos) {
-      dragStartRef.current = null;
-      setDragId(null);
-      setDragPos(null);
-      return;
+  /* ─── Unified SVG mouse move ─── */
+  const handleSvgMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      const { x, y } = svgPoint(e.clientX, e.clientY);
+      if (dragStartRef.current) {
+        setDragPos({ position: xToPos(x), fortune: yToFortune(y) });
+      }
+      if (dragEventId !== null) {
+        setDragEventPos(xToPos(x));
+      }
+    },
+    [svgPoint, xToPos, yToFortune, dragEventId]
+  );
+
+  /* ─── Unified SVG mouse up / leave ─── */
+  const handleSvgMouseEnd = useCallback(async () => {
+    // End appearance drag
+    if (dragStartRef.current && dragPos) {
+      const { id } = dragStartRef.current;
+      await updateAppearance(id, {
+        position: Math.round(dragPos.position * 1000) / 1000,
+        fortune: Math.round(dragPos.fortune * 1000) / 1000,
+      });
     }
-    const { id } = dragStartRef.current;
-    await updateAppearance(id, {
-      position: Math.round(dragPos.position * 1000) / 1000,
-      fortune: Math.round(dragPos.fortune * 1000) / 1000,
-    });
     dragStartRef.current = null;
     setDragId(null);
     setDragPos(null);
-  }, [dragPos, updateAppearance]);
 
-  /* ─── Double-click to add appearance for the selected character ─── */
+    // End event drag
+    if (dragEventId !== null && dragEventPos !== null) {
+      await updateTimelineEvent(dragEventId, {
+        position: Math.round(dragEventPos * 1000) / 1000,
+      });
+    }
+    setDragEventId(null);
+    setDragEventPos(null);
+  }, [dragPos, updateAppearance, dragEventId, dragEventPos, updateTimelineEvent]);
+
+  const isDragging = dragId !== null || dragEventId !== null;
+
+  /* ─── Double-click to add appearance ─── */
   const handleDoubleClick = useCallback(
     async (e: React.MouseEvent<SVGSVGElement>) => {
       if (!activeProjectId || !selectedCharId) return;
@@ -315,7 +364,6 @@ export default function VonnegutTimeline() {
     []
   );
 
-  /* ─── Click on control point → navigate to scene ─── */
   const handleDotClick = useCallback(
     (e: React.MouseEvent, app: CharacterAppearance) => {
       e.stopPropagation();
@@ -326,7 +374,6 @@ export default function VonnegutTimeline() {
 
   const mono = theme === 'matrix' ? "'JetBrains Mono'" : "'Inter'";
 
-  /* ─── Mouse wheel fine adjustment for sliders ─── */
   const sliderWheel = (
     e: React.WheelEvent<HTMLInputElement>,
     value: number,
@@ -411,7 +458,7 @@ export default function VonnegutTimeline() {
         </motion.div>
       )}
 
-      {/* ──── Legend — click to select active character ──── */}
+      {/* ──── Legend ──── */}
       {characters.length > 0 && (
         <div className={styles.legend}>
           {characters.map((char) => {
@@ -433,7 +480,7 @@ export default function VonnegutTimeline() {
         </div>
       )}
 
-      {/* ──── Hint when characters exist but have no timeline data ──── */}
+      {/* ──── Hint ──── */}
       {characters.length > 0 && !hasAnyAppearances && (
         <div className={styles.hint}>
           Select a character above, then double-click on the timeline to add story points. Drag points to adjust.
@@ -447,18 +494,16 @@ export default function VonnegutTimeline() {
           width={timelineWidth}
           height={timelineHeight}
           className={styles.svg}
-          onMouseMove={dragId ? handleDragMove : undefined}
-          onMouseUp={dragId ? handleDragEnd : undefined}
-          onMouseLeave={dragId ? handleDragEnd : undefined}
+          onMouseMove={isDragging ? handleSvgMouseMove : undefined}
+          onMouseUp={isDragging ? handleSvgMouseEnd : undefined}
+          onMouseLeave={isDragging ? handleSvgMouseEnd : undefined}
           onDoubleClick={handleDoubleClick}
-          style={{ cursor: dragId ? 'grabbing' : undefined }}
+          style={{ cursor: dragEventId ? 'ew-resize' : dragId ? 'grabbing' : undefined }}
         >
           <defs>
-            {/* Clip path to keep line-area content from bleeding into the label column */}
             <clipPath id="lineAreaClip">
               <rect x={leftMargin} y={0} width={timelineWidth - leftMargin} height={timelineHeight} />
             </clipPath>
-            {/* Glow filters per character */}
             {characters.map((char) => (
               <filter key={char.id} id={`glow-${char.id}`} x="-50%" y="-50%" width="200%" height="200%">
                 <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur" />
@@ -489,20 +534,10 @@ export default function VonnegutTimeline() {
           })}
 
           {/* Fortune axis labels */}
-          <text
-            x={leftMargin + AXIS_LABEL_X}
-            y={plotTop + 6}
-            className={styles.axisLabel}
-            fontFamily={mono}
-          >
+          <text x={leftMargin + AXIS_LABEL_X} y={plotTop + 6} className={styles.axisLabel} fontFamily={mono}>
             Good Fortune
           </text>
-          <text
-            x={leftMargin + AXIS_LABEL_X}
-            y={plotBottom - 4}
-            className={styles.axisLabel}
-            fontFamily={mono}
-          >
+          <text x={leftMargin + AXIS_LABEL_X} y={plotBottom - 4} className={styles.axisLabel} fontFamily={mono}>
             Ill Fortune
           </text>
 
@@ -510,147 +545,117 @@ export default function VonnegutTimeline() {
           {chapterDivisions.map((div, i) => (
             <g key={i}>
               <line
-                x1={div.x}
-                y1={plotTop - 20}
-                x2={div.x}
-                y2={plotBottom + 5}
-                stroke="var(--timeline-grid)"
-                strokeWidth={1}
-                strokeDasharray="4,4"
+                x1={div.x} y1={plotTop - 20} x2={div.x} y2={plotBottom + 5}
+                stroke="var(--timeline-grid)" strokeWidth={1} strokeDasharray="4,4"
               />
-              <text
-                x={div.x + 8}
-                y={plotTop - 28}
-                fill="var(--text-secondary)"
-                fontSize={14}
-                fontWeight={600}
-                fontFamily={mono}
-              >
+              <text x={div.x + 8} y={plotTop - 28} fill="var(--text-secondary)" fontSize={14} fontWeight={600} fontFamily={mono}>
                 {div.label}
               </text>
             </g>
           ))}
 
-          {/* ──── Event bands with gradient (clipped to line area) ──── */}
+          {/* ──── Event bands (clipped) ──── */}
           <g clipPath="url(#lineAreaClip)">
-          {timelineEvents.map((event) => {
-            const x = posToX(event.position);
-            const w = event.width * lineAreaWidth;
-            const isEditing = editingEventId === event.id;
-            return (
-              <g key={event.id}>
-                {/* Gradient definition */}
-                <linearGradient id={`evtGrad-${event.id}`} x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0%" stopColor={event.color} stopOpacity={0.25} />
-                  <stop offset="50%" stopColor={event.color} stopOpacity={0.15} />
-                  <stop offset="100%" stopColor={event.color} stopOpacity={0.25} />
-                </linearGradient>
-                <rect
-                  x={x - w / 2}
-                  y={plotTop - 5}
-                  width={w}
-                  height={plotHeight + 10}
-                  fill={`url(#evtGrad-${event.id})`}
-                  rx={4}
-                />
-                {/* Cross-hatching */}
-                <pattern
-                  id={`hatch-${event.id}`}
-                  width={6}
-                  height={6}
-                  patternTransform="rotate(45)"
-                  patternUnits="userSpaceOnUse"
-                >
-                  <line x1={0} y1={0} x2={0} y2={6} stroke={event.color} strokeWidth={1} opacity={0.15} />
-                </pattern>
-                <rect
-                  x={x - w / 2}
-                  y={plotTop - 5}
-                  width={w}
-                  height={plotHeight + 10}
-                  fill={`url(#hatch-${event.id})`}
-                  rx={4}
-                />
-                {/* Editing highlight outline */}
-                {isEditing && (
-                  <rect
-                    x={x - w / 2}
-                    y={plotTop - 5}
-                    width={w}
-                    height={plotHeight + 10}
-                    fill="none"
-                    stroke={event.color}
-                    strokeWidth={2}
-                    strokeDasharray="6,3"
-                    rx={4}
-                    opacity={0.8}
-                  />
-                )}
-                {/* Clickable event label */}
-                <text
-                  x={x}
-                  y={plotBottom + 18}
-                  textAnchor="middle"
-                  fill={event.color}
-                  fontSize={12}
-                  fontWeight={700}
-                  fontFamily={mono}
-                  opacity={0.9}
-                  transform={`rotate(-30, ${x}, ${plotBottom + 18})`}
-                  style={{ cursor: 'pointer' }}
-                  onClick={(e) => { e.stopPropagation(); setEditingEventId(isEditing ? null : event.id!); }}
-                >
-                  {event.title}
-                </text>
-              </g>
-            );
-          })}
+            {timelineEvents.map((event) => {
+              const livePos = dragEventId === event.id && dragEventPos !== null ? dragEventPos : event.position;
+              const x = posToX(livePos);
+              const w = event.width * lineAreaWidth;
+              const isEditing = editingEventId === event.id;
+              const isDragTarget = dragEventId === event.id;
+              const labelRow = eventLabelRows.get(event.id!) ?? 0;
+              const labelY = plotBottom + EVENT_LABEL_BASE_Y + labelRow * EVENT_LABEL_ROW_H;
 
-          {/* ──── Live preview band while adding ──── */}
-          {showAddEvent && (() => {
-            const px = posToX(newEventPos);
-            const pw = newEventWidth * lineAreaWidth;
-            return (
-              <g>
-                <rect
-                  x={px - pw / 2}
-                  y={plotTop - 5}
-                  width={pw}
-                  height={plotHeight + 10}
-                  fill={newEventColor}
-                  opacity={0.1}
-                  rx={4}
-                />
-                <rect
-                  x={px - pw / 2}
-                  y={plotTop - 5}
-                  width={pw}
-                  height={plotHeight + 10}
-                  fill="none"
-                  stroke={newEventColor}
-                  strokeWidth={2}
-                  strokeDasharray="8,4"
-                  rx={4}
-                  opacity={0.7}
-                />
-                {newEventTitle && (
+              return (
+                <g key={event.id}>
+                  <linearGradient id={`evtGrad-${event.id}`} x1="0" x2="0" y1="0" y2="1">
+                    <stop offset="0%" stopColor={event.color} stopOpacity={0.25} />
+                    <stop offset="50%" stopColor={event.color} stopOpacity={0.15} />
+                    <stop offset="100%" stopColor={event.color} stopOpacity={0.25} />
+                  </linearGradient>
+
+                  {/* Band fill — draggable */}
+                  <rect
+                    x={x - w / 2} y={plotTop - 5} width={w} height={plotHeight + 10}
+                    fill={`url(#evtGrad-${event.id})`} rx={4}
+                    style={{ cursor: 'ew-resize' }}
+                    onMouseDown={(e) => handleEventDragStart(e, event.id!, livePos)}
+                  />
+
+                  {/* Cross-hatching */}
+                  <pattern id={`hatch-${event.id}`} width={6} height={6} patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+                    <line x1={0} y1={0} x2={0} y2={6} stroke={event.color} strokeWidth={1} opacity={0.15} />
+                  </pattern>
+                  <rect
+                    x={x - w / 2} y={plotTop - 5} width={w} height={plotHeight + 10}
+                    fill={`url(#hatch-${event.id})`} rx={4}
+                    style={{ cursor: 'ew-resize' }}
+                    onMouseDown={(e) => handleEventDragStart(e, event.id!, livePos)}
+                  />
+
+                  {/* Editing / dragging outline */}
+                  {(isEditing || isDragTarget) && (
+                    <rect
+                      x={x - w / 2} y={plotTop - 5} width={w} height={plotHeight + 10}
+                      fill="none" stroke={event.color} strokeWidth={2}
+                      strokeDasharray="6,3" rx={4} opacity={0.8}
+                    />
+                  )}
+
+                  {/* Colored marker dot at the label */}
+                  <circle cx={x} cy={labelY - 8} r={3} fill={event.color} opacity={0.7} />
+
+                  {/* Flat label — high contrast, clickable, draggable */}
                   <text
-                    x={px}
-                    y={plotBottom + 18}
+                    x={x}
+                    y={labelY}
                     textAnchor="middle"
-                    fill={newEventColor}
+                    fill="var(--text-primary)"
                     fontSize={12}
-                    fontWeight={700}
+                    fontWeight={600}
                     fontFamily={mono}
-                    opacity={0.6}
-                    transform={`rotate(-30, ${px}, ${plotBottom + 18})`}
+                    opacity={0.85}
+                    style={{ cursor: 'ew-resize' }}
+                    onMouseDown={(e) => handleEventDragStart(e, event.id!, livePos)}
+                    onClick={(e) => {
+                      if (!isDragTarget) {
+                        e.stopPropagation();
+                        setEditingEventId(isEditing ? null : event.id!);
+                      }
+                    }}
                   >
-                    {newEventTitle}
+                    {event.title}
                   </text>
-                )}
-              </g>
-            );
-          })()}
+                </g>
+              );
+            })}
+
+            {/* ──── Live preview band ──── */}
+            {showAddEvent && (() => {
+              const px = posToX(newEventPos);
+              const pw = newEventWidth * lineAreaWidth;
+              return (
+                <g>
+                  <rect
+                    x={px - pw / 2} y={plotTop - 5} width={pw} height={plotHeight + 10}
+                    fill={newEventColor} opacity={0.1} rx={4}
+                  />
+                  <rect
+                    x={px - pw / 2} y={plotTop - 5} width={pw} height={plotHeight + 10}
+                    fill="none" stroke={newEventColor} strokeWidth={2}
+                    strokeDasharray="8,4" rx={4} opacity={0.7}
+                  />
+                  {newEventTitle && (
+                    <text
+                      x={px} y={plotBottom + EVENT_LABEL_BASE_Y}
+                      textAnchor="middle" fill="var(--text-primary)"
+                      fontSize={12} fontWeight={600} fontFamily={mono} opacity={0.5}
+                    >
+                      {newEventTitle}
+                    </text>
+                  )}
+                </g>
+              );
+            })()}
           </g>
 
           {/* ──── Character lines ──── */}
@@ -658,134 +663,89 @@ export default function VonnegutTimeline() {
             const isHovered = hoveredChar === cp.character.id;
             const isSelected = selectedCharId === cp.character.id;
             const isHighlighted = hoveredChar === null ? true : isHovered;
-            const isActive = isSelected || isHovered; // extra emphasis
+            const isActive = isSelected || isHovered;
             const pathD = buildPath(cp.points);
 
             return (
               <g key={cp.character.id}>
-                {/* Character name label — right-aligned, same Y as the average line position */}
                 <text
                   x={leftMargin - LABEL_GAP}
-                  y={
-                    cp.points.length > 0
-                      ? cp.points.reduce((s, p) => s + p.y, 0) / cp.points.length
-                      : fortuneToY(0.5)
-                  }
-                  textAnchor="end"
-                  dominantBaseline="middle"
-                  fill={cp.character.color}
-                  fontSize={LABEL_FONT_SIZE}
-                  fontWeight={700}
-                  fontFamily={mono}
-                  opacity={isHighlighted ? 0.9 : 0.25}
+                  y={cp.points.length > 0 ? cp.points.reduce((s, p) => s + p.y, 0) / cp.points.length : fortuneToY(0.5)}
+                  textAnchor="end" dominantBaseline="middle"
+                  fill={cp.character.color} fontSize={LABEL_FONT_SIZE} fontWeight={700}
+                  fontFamily={mono} opacity={isHighlighted ? 0.9 : 0.25}
                   style={{ transition: 'opacity 0.3s' }}
                 >
                   {cp.character.name}
                 </text>
 
-                {/* Glow line (background) */}
                 {isHighlighted && (
-                  <path
-                    d={pathD}
-                    fill="none"
-                    stroke={cp.character.color}
-                    strokeWidth={isActive ? 10 : 6}
-                    opacity={isActive ? 0.2 : 0.12}
-                    strokeLinecap="round"
-                    filter={`url(#glow-${cp.character.id})`}
+                  <path d={pathD} fill="none" stroke={cp.character.color}
+                    strokeWidth={isActive ? 10 : 6} opacity={isActive ? 0.2 : 0.12}
+                    strokeLinecap="round" filter={`url(#glow-${cp.character.id})`}
                   />
                 )}
 
-                {/* Main line */}
-                <path
-                  d={pathD}
-                  fill="none"
-                  stroke={cp.character.color}
+                <path d={pathD} fill="none" stroke={cp.character.color}
                   strokeWidth={isActive ? 3 : isHighlighted ? 2.5 : 1.5}
                   strokeLinecap="round"
                   className={isHighlighted ? styles.charPath : styles.charPathDim}
                   style={{ '--glow-color': cp.character.color } as React.CSSProperties}
                 />
 
-                {/* Control points */}
-                {cp.hasData &&
-                  cp.points.map((pt, i) => {
-                    const app = pt.appearance;
-                    const isDragging = dragId === app?.id;
-                    const isDeath = app?.isDeath;
-                    const r = isDragging ? 9 : isDeath ? 7 : 6;
+                {cp.hasData && cp.points.map((pt, i) => {
+                  const app = pt.appearance;
+                  const isDraggingDot = dragId === app?.id;
+                  const isDeath = app?.isDeath;
+                  const r = isDraggingDot ? 9 : isDeath ? 7 : 6;
 
-                    return (
-                      <g key={i}>
-                        {/* Outer halo on hover/drag */}
-                        {(isDragging || (isHighlighted && hoveredChar === cp.character.id)) && (
-                          <circle
-                            cx={pt.x}
-                            cy={pt.y}
-                            r={r + 5}
-                            fill={cp.character.color}
-                            opacity={0.12}
-                          />
-                        )}
-
-                        {/* Main dot */}
-                        <circle
-                          cx={pt.x}
-                          cy={pt.y}
-                          r={r}
-                          fill={isDeath ? '#e55' : cp.character.color}
-                          opacity={isHighlighted ? 0.9 : 0.2}
-                          className={isDragging ? styles.controlDotDragging : styles.controlDot}
-                          style={{ '--glow-color': cp.character.color } as React.CSSProperties}
-                          onMouseDown={(e) => app?.id && handleDragStart(e, app)}
-                          onMouseEnter={(e) => app?.id && handleDotHover(e, app, cp.character.id!)}
-                          onMouseLeave={() => {
-                            if (!dragId) {
-                              setHoveredChar(null);
-                              setHoverInfo(null);
-                            }
-                          }}
-                          onClick={(e) => app?.id && handleDotClick(e, app)}
-                        />
-
-                        {/* Death mark — X */}
-                        {isDeath && (
-                          <g
-                            transform={`translate(${pt.x}, ${pt.y})`}
-                            opacity={isHighlighted ? 0.9 : 0.3}
-                            className={styles.deathMark}
-                          >
-                            <line x1={-5} y1={-5} x2={5} y2={5} stroke="#e55" strokeWidth={2.5} />
-                            <line x1={5} y1={-5} x2={-5} y2={5} stroke="#e55" strokeWidth={2.5} />
-                          </g>
-                        )}
-                      </g>
-                    );
-                  })}
+                  return (
+                    <g key={i}>
+                      {(isDraggingDot || (isHighlighted && hoveredChar === cp.character.id)) && (
+                        <circle cx={pt.x} cy={pt.y} r={r + 5} fill={cp.character.color} opacity={0.12} />
+                      )}
+                      <circle
+                        cx={pt.x} cy={pt.y} r={r}
+                        fill={isDeath ? '#e55' : cp.character.color}
+                        opacity={isHighlighted ? 0.9 : 0.2}
+                        className={isDraggingDot ? styles.controlDotDragging : styles.controlDot}
+                        style={{ '--glow-color': cp.character.color } as React.CSSProperties}
+                        onMouseDown={(e) => app?.id && handleDragStart(e, app)}
+                        onMouseEnter={(e) => app?.id && handleDotHover(e, app, cp.character.id!)}
+                        onMouseLeave={() => { if (!dragId) { setHoveredChar(null); setHoverInfo(null); } }}
+                        onClick={(e) => app?.id && handleDotClick(e, app)}
+                      />
+                      {isDeath && (
+                        <g transform={`translate(${pt.x}, ${pt.y})`} opacity={isHighlighted ? 0.9 : 0.3} className={styles.deathMark}>
+                          <line x1={-5} y1={-5} x2={5} y2={5} stroke="#e55" strokeWidth={2.5} />
+                          <line x1={5} y1={-5} x2={-5} y2={5} stroke="#e55" strokeWidth={2.5} />
+                        </g>
+                      )}
+                    </g>
+                  );
+                })}
               </g>
             );
           })}
         </svg>
 
-        {/* ──── Drag tooltip (HTML overlay) ──── */}
+        {/* ──── Drag tooltip ──── */}
         {dragId && dragPos && (
-          <div
-            className={styles.dragTooltip}
-            style={{
-              left: posToX(dragPos.position),
-              top: fortuneToY(dragPos.fortune) - 20,
-            }}
-          >
+          <div className={styles.dragTooltip} style={{ left: posToX(dragPos.position), top: fortuneToY(dragPos.fortune) - 20 }}>
             fortune: {dragPos.fortune.toFixed(2)}
           </div>
         )}
 
-        {/* ──── Hover tooltip (HTML overlay) ──── */}
-        {hoverInfo && !dragId && (
-          <div
-            className={styles.hoverTooltip}
-            style={{ left: hoverInfo.x, top: hoverInfo.y }}
-          >
+        {/* ──── Event drag tooltip ──── */}
+        {dragEventId !== null && dragEventPos !== null && (
+          <div className={styles.dragTooltip} style={{ left: posToX(dragEventPos), top: plotTop - 10 }}>
+            pos: {dragEventPos.toFixed(2)}
+          </div>
+        )}
+
+        {/* ──── Hover tooltip ──── */}
+        {hoverInfo && !isDragging && (
+          <div className={styles.hoverTooltip} style={{ left: hoverInfo.x, top: hoverInfo.y }}>
             {hoverInfo.text}
           </div>
         )}
