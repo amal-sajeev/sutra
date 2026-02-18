@@ -1,4 +1,5 @@
 .container {
+  position: relative;
   width: 100%;
   height: 100%;
   display: flex;
@@ -276,7 +277,7 @@
 
 /* ──── Drag tooltip ──── */
 .dragTooltip {
-  position: absolute;
+  position: fixed;
   pointer-events: none;
   padding: 4px 10px;
   font-size: 0.85rem;
@@ -294,7 +295,7 @@
 
 /* ──── Hover tooltip ──── */
 .hoverTooltip {
-  position: absolute;
+  position: fixed;
   pointer-events: none;
   padding: 6px 14px;
   font-size: 0.9rem;
@@ -334,6 +335,21 @@
   text-align: center;
   flex-shrink: 0;
   letter-spacing: 0.01em;
+}
+
+/* Note editor — overlays bottom of timeline to avoid ResizeObserver loop */
+.noteEditor {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--divider);
+  background: var(--bg-primary);
+  z-index: 20;
 }
 
 /* Empty */

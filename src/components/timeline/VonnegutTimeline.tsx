@@ -3,21 +3,25 @@ import { motion } from 'framer-motion';
 import { useProjectStore } from '../../stores/projectStore';
 import { useUIStore } from '../../stores/uiStore';
 import PanelMaxBtn from '../ui/PanelMaxBtn';
+import ContextMenu from '../ui/ContextMenu';
+import type { ContextMenuItem } from '../ui/ContextMenu';
 import styles from './VonnegutTimeline.module.css';
 import type { CharacterAppearance } from '../../types';
 
 /* ─── Layout constants ─── */
 const PADDING_TOP = 70;
-const PADDING_BOTTOM = 80;
+const PADDING_BOTTOM = 110;
 const LABEL_GAP = 18;
 const LABEL_PAD_LEFT = 10;
 const LABEL_FONT_SIZE = 15;
 const CHAR_PX_WIDTH = 9.5;
 const AXIS_LABEL_X = 10;
 const FORTUNE_GRID = [0.25, 0.5, 0.75];
-const EVENT_LABEL_BASE_Y = 20;   // first label row offset below plotBottom
+const EVENT_LABEL_BASE_Y = 34;   // first label row offset below plotBottom
 const EVENT_LABEL_ROW_H = 16;    // height per stagger row
-const EVENT_LABEL_MIN_GAP = 70;  // min px between labels before staggering
+const EVENT_DOT_Y = 14;          // marker dot offset below plotBottom
+const EVENT_LABEL_CHAR_PX = 7.2; // approx px per char at fontSize 12, weight 600
+const EVENT_LABEL_PAD = 14;      // extra horizontal padding between labels
 
 export default function VonnegutTimeline() {
   const chapters = useProjectStore((s) => s.chapters);
@@ -32,12 +36,16 @@ export default function VonnegutTimeline() {
   const deleteTimelineEvent = useProjectStore((s) => s.deleteTimelineEvent);
   const updateAppearance = useProjectStore((s) => s.updateAppearance);
   const createAppearance = useProjectStore((s) => s.createAppearance);
+  const deleteAppearance = useProjectStore((s) => s.deleteAppearance);
   const activeProjectId = useProjectStore((s) => s.activeProjectId);
   const theme = useUIStore((s) => s.theme);
 
   const [hoveredChar, setHoveredChar] = useState<number | null>(null);
   const [selectedCharId, setSelectedCharId] = useState<number | null>(null);
   const [hoverInfo, setHoverInfo] = useState<{ x: number; y: number; text: string } | null>(null);
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null);
+  const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
+  const [editingNoteText, setEditingNoteText] = useState('');
   const [showAddChar, setShowAddChar] = useState(false);
   const [newCharName, setNewCharName] = useState('');
   const [newCharColor, setNewCharColor] = useState('#5a9e9e');
@@ -58,6 +66,8 @@ export default function VonnegutTimeline() {
   /* ─── Event drag state ─── */
   const [dragEventId, setDragEventId] = useState<number | null>(null);
   const [dragEventPos, setDragEventPos] = useState<number | null>(null);
+  const eventDragPending = useRef<{ id: number; pos: number; startX: number } | null>(null);
+  const EVENT_DRAG_THRESHOLD = 4; // px of movement before drag activates
 
   /* ─── Container size tracking ─── */
   const [containerW, setContainerW] = useState(600);
@@ -202,20 +212,21 @@ export default function VonnegutTimeline() {
       .map((evt) => ({
         id: evt.id!,
         x: posToX(dragEventId === evt.id && dragEventPos !== null ? dragEventPos : evt.position),
+        halfW: (evt.title.length * EVENT_LABEL_CHAR_PX) / 2,
       }))
       .sort((a, b) => a.x - b.x);
 
-    const occupied: { x: number; row: number }[] = [];
+    const occupied: { x: number; row: number; halfW: number }[] = [];
     for (const item of sorted) {
       let row = 0;
       for (const prev of occupied) {
-        if (Math.abs(item.x - prev.x) < EVENT_LABEL_MIN_GAP && prev.row === row) {
+        if (prev.row === row && Math.abs(item.x - prev.x) < item.halfW + prev.halfW + EVENT_LABEL_PAD) {
           row++;
-          if (row > 2) row = 0; // cycle through 3 rows max
+          if (row > 4) { row = 0; break; }
         }
       }
       rows.set(item.id, row);
-      occupied.push({ x: item.x, row });
+      occupied.push({ x: item.x, row, halfW: item.halfW });
     }
     return rows;
   }, [timelineEvents, posToX, dragEventId, dragEventPos]);
@@ -281,8 +292,7 @@ export default function VonnegutTimeline() {
     (e: React.MouseEvent, eventId: number, currentPos: number) => {
       e.stopPropagation();
       e.preventDefault();
-      setDragEventId(eventId);
-      setDragEventPos(currentPos);
+      eventDragPending.current = { id: eventId, pos: currentPos, startX: e.clientX };
     },
     []
   );
@@ -294,6 +304,16 @@ export default function VonnegutTimeline() {
       if (dragStartRef.current) {
         setDragPos({ position: xToPos(x), fortune: yToFortune(y) });
       }
+
+      // Promote pending event drag once threshold is exceeded
+      if (eventDragPending.current && dragEventId === null) {
+        if (Math.abs(e.clientX - eventDragPending.current.startX) >= EVENT_DRAG_THRESHOLD) {
+          setDragEventId(eventDragPending.current.id);
+          setDragEventPos(xToPos(x));
+        }
+        return;
+      }
+
       if (dragEventId !== null) {
         setDragEventPos(xToPos(x));
       }
@@ -314,6 +334,15 @@ export default function VonnegutTimeline() {
     dragStartRef.current = null;
     setDragId(null);
     setDragPos(null);
+
+    // If pending event drag never exceeded threshold → treat as click
+    if (eventDragPending.current && dragEventId === null) {
+      const clickedId = eventDragPending.current.id;
+      eventDragPending.current = null;
+      setEditingEventId((prev) => (prev === clickedId ? null : clickedId));
+      return;
+    }
+    eventDragPending.current = null;
 
     // End event drag
     if (dragEventId !== null && dragEventPos !== null) {
@@ -351,12 +380,9 @@ export default function VonnegutTimeline() {
     (e: React.MouseEvent, app: CharacterAppearance, charId: number) => {
       setHoveredChar(charId);
       if (app.note) {
-        const el = scrollRef.current;
-        if (!el) return;
-        const scrollRect = el.getBoundingClientRect();
         setHoverInfo({
-          x: e.clientX - scrollRect.left + el.scrollLeft,
-          y: e.clientY - scrollRect.top + el.scrollTop,
+          x: e.clientX,
+          y: e.clientY,
           text: app.note,
         });
       }
@@ -370,6 +396,58 @@ export default function VonnegutTimeline() {
       if (app.sceneId) setActiveScene(app.sceneId);
     },
     [setActiveScene]
+  );
+
+  /* ─── Right-click context menu on control points ─── */
+  const handleDotContextMenu = useCallback(
+    (e: React.MouseEvent, app: CharacterAppearance) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!app.id) return;
+      const appId = app.id;
+
+      const sceneItems: ContextMenuItem[] = scenes.map((scene) => {
+        const ch = chapters.find((c) => c.id === scene.chapterId);
+        const prefix = ch ? `${ch.title} — ` : '';
+        const isCurrent = app.sceneId === scene.id;
+        return {
+          label: `${isCurrent ? '● ' : ''}${prefix}${scene.title}`,
+          action: () => updateAppearance(appId, { sceneId: scene.id }),
+        };
+      });
+
+      const items: ContextMenuItem[] = [
+        ...(scenes.length > 0 ? [{
+          label: app.sceneId ? 'Change linked scene' : 'Link to scene',
+          action: () => {
+            setCtxMenu({ x: e.clientX, y: e.clientY, items: sceneItems });
+          },
+        }] : []),
+        ...(app.sceneId ? [{
+          label: 'Unlink scene',
+          action: () => updateAppearance(appId, { sceneId: undefined }),
+        }] : []),
+        {
+          label: 'Edit note',
+          action: () => {
+            setEditingNoteId(appId);
+            setEditingNoteText(app.note ?? '');
+          },
+        },
+        {
+          label: app.isDeath ? 'Unmark as death' : 'Mark as death',
+          action: () => updateAppearance(appId, { isDeath: !app.isDeath }),
+        },
+        {
+          label: 'Delete node',
+          danger: true,
+          action: () => deleteAppearance(appId),
+        },
+      ];
+
+      setCtxMenu({ x: e.clientX, y: e.clientY, items });
+    },
+    [scenes, chapters, updateAppearance, deleteAppearance]
   );
 
   const mono = theme === 'matrix' ? "'JetBrains Mono'" : "'Inter'";
@@ -494,11 +572,11 @@ export default function VonnegutTimeline() {
           width={timelineWidth}
           height={timelineHeight}
           className={styles.svg}
-          onMouseMove={isDragging ? handleSvgMouseMove : undefined}
-          onMouseUp={isDragging ? handleSvgMouseEnd : undefined}
-          onMouseLeave={isDragging ? handleSvgMouseEnd : undefined}
+          onMouseMove={handleSvgMouseMove}
+          onMouseUp={handleSvgMouseEnd}
+          onMouseLeave={handleSvgMouseEnd}
           onDoubleClick={handleDoubleClick}
-          style={{ cursor: dragEventId ? 'ew-resize' : dragId ? 'grabbing' : undefined }}
+          style={{ cursor: dragEventId !== null ? 'ew-resize' : dragId !== null ? 'grabbing' : undefined }}
         >
           <defs>
             <clipPath id="lineAreaClip">
@@ -573,11 +651,11 @@ export default function VonnegutTimeline() {
                     <stop offset="100%" stopColor={event.color} stopOpacity={0.25} />
                   </linearGradient>
 
-                  {/* Band fill — draggable */}
+                  {/* Band fill — click to edit, drag to reposition */}
                   <rect
                     x={x - w / 2} y={plotTop - 5} width={w} height={plotHeight + 10}
                     fill={`url(#evtGrad-${event.id})`} rx={4}
-                    style={{ cursor: 'ew-resize' }}
+                    style={{ cursor: 'pointer' }}
                     onMouseDown={(e) => handleEventDragStart(e, event.id!, livePos)}
                   />
 
@@ -588,7 +666,7 @@ export default function VonnegutTimeline() {
                   <rect
                     x={x - w / 2} y={plotTop - 5} width={w} height={plotHeight + 10}
                     fill={`url(#hatch-${event.id})`} rx={4}
-                    style={{ cursor: 'ew-resize' }}
+                    style={{ cursor: 'pointer' }}
                     onMouseDown={(e) => handleEventDragStart(e, event.id!, livePos)}
                   />
 
@@ -601,10 +679,10 @@ export default function VonnegutTimeline() {
                     />
                   )}
 
-                  {/* Colored marker dot at the label */}
-                  <circle cx={x} cy={labelY - 8} r={3} fill={event.color} opacity={0.7} />
+                  {/* Colored marker dot between band and label */}
+                  <circle cx={x} cy={plotBottom + EVENT_DOT_Y} r={3} fill={event.color} opacity={0.7} />
 
-                  {/* Flat label — high contrast, clickable, draggable */}
+                  {/* Flat label — click to edit, drag to reposition */}
                   <text
                     x={x}
                     y={labelY}
@@ -614,14 +692,8 @@ export default function VonnegutTimeline() {
                     fontWeight={600}
                     fontFamily={mono}
                     opacity={0.85}
-                    style={{ cursor: 'ew-resize' }}
+                    style={{ cursor: 'pointer' }}
                     onMouseDown={(e) => handleEventDragStart(e, event.id!, livePos)}
-                    onClick={(e) => {
-                      if (!isDragTarget) {
-                        e.stopPropagation();
-                        setEditingEventId(isEditing ? null : event.id!);
-                      }
-                    }}
                   >
                     {event.title}
                   </text>
@@ -714,6 +786,7 @@ export default function VonnegutTimeline() {
                         onMouseEnter={(e) => app?.id && handleDotHover(e, app, cp.character.id!)}
                         onMouseLeave={() => { if (!dragId) { setHoveredChar(null); setHoverInfo(null); } }}
                         onClick={(e) => app?.id && handleDotClick(e, app)}
+                        onContextMenu={(e) => app?.id && handleDotContextMenu(e, app)}
                       />
                       {isDeath && (
                         <g transform={`translate(${pt.x}, ${pt.y})`} opacity={isHighlighted ? 0.9 : 0.3} className={styles.deathMark}>
@@ -728,28 +801,38 @@ export default function VonnegutTimeline() {
             );
           })}
         </svg>
+      </div>
 
-        {/* ──── Drag tooltip ──── */}
-        {dragId && dragPos && (
-          <div className={styles.dragTooltip} style={{ left: posToX(dragPos.position), top: fortuneToY(dragPos.fortune) - 20 }}>
+      {/* ──── Tooltips (fixed positioning to avoid scroll-area feedback loops) ──── */}
+      {dragId && dragPos && svgRef.current && (() => {
+        const r = svgRef.current!.getBoundingClientRect();
+        return (
+          <div className={styles.dragTooltip} style={{
+            left: r.left + posToX(dragPos.position),
+            top: r.top + fortuneToY(dragPos.fortune) - 20,
+          }}>
             fortune: {dragPos.fortune.toFixed(2)}
           </div>
-        )}
+        );
+      })()}
 
-        {/* ──── Event drag tooltip ──── */}
-        {dragEventId !== null && dragEventPos !== null && (
-          <div className={styles.dragTooltip} style={{ left: posToX(dragEventPos), top: plotTop - 10 }}>
+      {dragEventId !== null && dragEventPos !== null && svgRef.current && (() => {
+        const r = svgRef.current!.getBoundingClientRect();
+        return (
+          <div className={styles.dragTooltip} style={{
+            left: r.left + posToX(dragEventPos),
+            top: r.top + plotTop - 10,
+          }}>
             pos: {dragEventPos.toFixed(2)}
           </div>
-        )}
+        );
+      })()}
 
-        {/* ──── Hover tooltip ──── */}
-        {hoverInfo && !isDragging && (
-          <div className={styles.hoverTooltip} style={{ left: hoverInfo.x, top: hoverInfo.y }}>
-            {hoverInfo.text}
-          </div>
-        )}
-      </div>
+      {hoverInfo && !isDragging && (
+        <div className={styles.hoverTooltip} style={{ left: hoverInfo.x, top: hoverInfo.y }}>
+          {hoverInfo.text}
+        </div>
+      )}
 
       {/* ──── Empty state ──── */}
       {characters.length === 0 && (
@@ -759,6 +842,55 @@ export default function VonnegutTimeline() {
             Each character becomes a colored line through your story — rising and falling with fortune
           </p>
         </div>
+      )}
+
+      {/* ──── Node context menu ──── */}
+      <ContextMenu
+        x={ctxMenu?.x ?? 0}
+        y={ctxMenu?.y ?? 0}
+        items={ctxMenu?.items ?? []}
+        isOpen={ctxMenu !== null}
+        onClose={() => setCtxMenu(null)}
+      />
+
+      {/* ──── Inline note editor ──── */}
+      {editingNoteId !== null && (
+        <motion.div
+          className={styles.noteEditor}
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0 }}
+        >
+          <input
+            className={styles.formInput}
+            placeholder="Note for this point..."
+            value={editingNoteText}
+            onChange={(e) => setEditingNoteText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                updateAppearance(editingNoteId, { note: editingNoteText || undefined });
+                setEditingNoteId(null);
+              }
+              if (e.key === 'Escape') setEditingNoteId(null);
+            }}
+            autoFocus
+          />
+          <button
+            className={styles.formBtn}
+            onClick={() => {
+              updateAppearance(editingNoteId, { note: editingNoteText || undefined });
+              setEditingNoteId(null);
+            }}
+          >
+            Save
+          </button>
+          <button
+            className={styles.doneBtn}
+            onClick={() => setEditingNoteId(null)}
+          >
+            Cancel
+          </button>
+        </motion.div>
       )}
     </div>
   );
