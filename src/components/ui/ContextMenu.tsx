@@ -40,6 +40,21 @@ export default function ContextMenu({ x, y, items, onClose, isOpen }: ContextMen
     };
   }, [isOpen, onClose]);
 
+  // Flip to prevent overflow
+  useEffect(() => {
+    if (!isOpen || !menuRef.current) return;
+    const rect = menuRef.current.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    let nx = x, ny = y;
+    if (rect.right > vw) nx = Math.max(0, x - rect.width);
+    if (rect.bottom > vh) ny = Math.max(0, y - rect.height);
+    if (nx !== x || ny !== y) {
+      menuRef.current.style.left = `${nx}px`;
+      menuRef.current.style.top = `${ny}px`;
+    }
+  }, [isOpen, x, y]);
+
   return (
     <AnimatePresence>
       {isOpen && (

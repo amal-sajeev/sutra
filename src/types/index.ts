@@ -17,6 +17,19 @@ export interface ProjectSettings {
   typewriterMode?: boolean;
   focusMode?: boolean;
   digitalRain?: boolean;
+  editorFont?: string;
+  editorSize?: number;
+  lineSpacing?: number;
+  manuscriptTarget?: number;
+  sessionTarget?: number;
+  authorName?: string;
+  labels?: ProjectLabel[];
+  exportDefaults?: Partial<ExportOptions>;
+}
+
+export interface ProjectLabel {
+  name: string;
+  color: string;
 }
 
 export interface Chapter {
@@ -34,7 +47,11 @@ export interface Scene {
   content: string; // TipTap JSON string
   order: number;
   synopsis?: string;
+  notes?: string;
   status: 'draft' | 'revision' | 'final';
+  label?: string;
+  tags?: string[];
+  wordTarget?: number;
   lastEditedAt: number;
 }
 
@@ -102,6 +119,63 @@ export interface Snapshot {
   createdAt: number;
 }
 
+export interface NoteDocument {
+  id?: number;
+  projectId: number;
+  title: string;
+  content: string;
+  order: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface WritingHistory {
+  id?: number;
+  projectId: number;
+  date: string; // YYYY-MM-DD
+  wordsWritten: number;
+  totalWords: number;
+}
+
+export interface TrashItem {
+  id?: number;
+  projectId: number;
+  itemType: 'scene' | 'chapter' | 'character';
+  data: string; // JSON-serialized original object
+  deletedAt: number;
+  originalTitle: string;
+}
+
+/* ==============================
+   Export Types
+   ============================== */
+
+export type ExportFormat = 'markdown' | 'plaintext' | 'html' | 'epub' | 'docx' | 'pdf' | 'json';
+
+export type ExportScope = 'full' | 'chapter' | 'scene';
+
+export type SceneSeparator = 'blank' | 'asterisks' | 'rule' | 'hash' | 'none';
+
+export type PageSize = 'letter' | 'a4' | 'a5' | '6x9';
+
+export interface ExportOptions {
+  format: ExportFormat;
+  scope: ExportScope;
+  scopeId?: number;
+  includeTitle: boolean;
+  includeChapterHeadings: boolean;
+  includeSceneTitles: boolean;
+  sceneSeparator: SceneSeparator;
+  includeSynopsis: boolean;
+  includeFrontMatter: boolean;
+  fontFamily: string;
+  fontSize: number;
+  lineSpacing: number;
+  pageSize: PageSize;
+  authorName: string;
+  chapterPageBreaks: boolean;
+}
+
 /* ==============================
    UI State Types
    ============================== */
@@ -109,6 +183,8 @@ export interface Snapshot {
 export type ThemeMode = 'lain' | 'matrix';
 
 export type RightPanelView = 'timeline' | 'constellation' | 'characters' | 'snapshots' | 'none';
+
+export type CenterView = 'editor' | 'corkboard' | 'outliner' | 'scrivenings';
 
 export interface BinderItem {
   type: 'chapter' | 'scene';

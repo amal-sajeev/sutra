@@ -1,8 +1,14 @@
-.toggle {
+.toggleGroup {
   position: fixed;
   top: 12px;
   right: 12px;
   z-index: 1000;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.toggle {
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -29,4 +35,30 @@
   align-items: center;
   justify-content: center;
   perspective: 600px;
+}
+
+.rainToggle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  color: var(--text-tertiary);
+  backdrop-filter: blur(10px);
+  transition: all var(--transition-base);
+  cursor: pointer;
+}
+
+.rainToggle:hover {
+  background: var(--bg-panel-hover);
+  color: var(--accent-primary);
+}
+
+.rainActive {
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+  box-shadow: var(--shadow-glow);
 }

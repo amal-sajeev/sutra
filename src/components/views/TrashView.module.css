@@ -1,0 +1,131 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 60vh;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.count {
+  font-size: 0.82rem;
+  color: var(--text-tertiary);
+}
+
+.emptyBtn {
+  padding: 5px 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #e55;
+  border: 1px solid rgba(238, 85, 85, 0.3);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.emptyBtn:hover {
+  background: rgba(238, 85, 85, 0.1);
+}
+
+.empty {
+  padding: 30px;
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 0.9rem;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  max-height: 50vh;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 6px;
+  gap: 8px;
+  transition: background var(--transition-fast);
+}
+
+.item:hover {
+  background: var(--bg-secondary);
+}
+
+.itemInfo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.itemType {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--bg-tertiary);
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.itemTitle {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.itemDate {
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.itemActions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.restoreBtn {
+  padding: 4px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+  border: 1px solid var(--border-active);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.restoreBtn:hover {
+  background: var(--accent-glow);
+}
+
+.deleteBtn {
+  padding: 4px 10px;
+  font-size: 0.78rem;
+  color: #e55;
+  border: 1px solid rgba(238, 85, 85, 0.3);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.deleteBtn:hover {
+  background: rgba(238, 85, 85, 0.1);
+}

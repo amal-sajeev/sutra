@@ -110,6 +110,14 @@
   background: var(--accent-glow);
 }
 
+.inspector {
+  width: 280px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--divider);
+  background: var(--bg-panel);
+  overflow-y: auto;
+}
+
 .rightPanel {
   flex-shrink: 0;
   border-left: 1px solid var(--divider);
@@ -121,4 +129,25 @@
 .rightPanelMaximized {
   flex: 1;
   border-left: none;
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    position: absolute;
+    z-index: 20;
+    height: 100%;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .rightPanel {
+    position: absolute;
+    right: 0;
+    z-index: 20;
+    height: 100%;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .resizeHandle {
+    display: none;
+  }
 }

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Project, Chapter, Scene, Character, Relationship, Idea, TimelineEvent, CharacterAppearance, Snapshot } from '../types';
+import type { Project, Chapter, Scene, Character, Relationship, Idea, TimelineEvent, CharacterAppearance, Snapshot, NoteDocument, TrashItem } from '../types';
 import * as ops from '../db/operations';
 
 interface ProjectState {
@@ -15,8 +15,12 @@ interface ProjectState {
   timelineEvents: TimelineEvent[];
   appearances: CharacterAppearance[];
   snapshots: Snapshot[];
+  noteDocuments: NoteDocument[];
+  trashItems: TrashItem[];
   activeSceneId: number | null;
   activeScene: Scene | null;
+  activeNoteId: number | null;
+  activeNote: NoteDocument | null;
   splitSceneId: number | null;
 
   /* Loaders */
@@ -40,6 +44,9 @@ interface ProjectState {
   setSplitScene: (id: number | null) => void;
   updateScene: (id: number, changes: Partial<Scene>) => Promise<void>;
   deleteScene: (id: number) => Promise<void>;
+  reorderChapters: (orderedIds: number[]) => Promise<void>;
+  reorderScenes: (chapterId: number, orderedIds: number[]) => Promise<void>;
+  moveScene: (sceneId: number, newChapterId: number) => Promise<void>;
 
   /* Character CRUD */
   createCharacter: (data: Partial<Character>) => Promise<number>;
@@ -70,6 +77,21 @@ interface ProjectState {
   createSnapshot: (sceneId: number, name: string, content: string, note?: string) => Promise<number>;
   loadSnapshots: (sceneId: number) => Promise<void>;
   deleteSnapshot: (id: number) => Promise<void>;
+
+  /* Notes */
+  createNote: (title: string) => Promise<number>;
+  setActiveNote: (id: number | null) => Promise<void>;
+  updateNote: (id: number, changes: Partial<NoteDocument>) => Promise<void>;
+  deleteNote: (id: number) => Promise<void>;
+
+  /* Trash */
+  loadTrash: () => Promise<void>;
+  trashScene: (id: number) => Promise<void>;
+  trashChapter: (id: number) => Promise<void>;
+  trashCharacter: (id: number) => Promise<void>;
+  restoreTrashItem: (id: number) => Promise<void>;
+  deleteTrashItem: (id: number) => Promise<void>;
+  emptyTrash: () => Promise<void>;
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
@@ -84,8 +106,12 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   timelineEvents: [],
   appearances: [],
   snapshots: [],
+  noteDocuments: [],
+  trashItems: [],
   activeSceneId: null,
   activeScene: null,
+  activeNoteId: null,
+  activeNote: null,
   splitSceneId: null,
 
   /* ---- Loaders ---- */
@@ -104,6 +130,18 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const ideas = await ops.getIdeas(id);
     const timelineEvents = await ops.getTimelineEvents(id);
     const appearances = await ops.getAppearances(id);
+    const noteDocuments = await ops.getNoteDocuments(id);
+    const trashItems = await ops.getTrashItems(id);
+
+    // Apply per-project settings if they exist
+    const ps = project.settings;
+    if (ps) {
+      const uiMod = await import('./uiStore');
+      const ui = uiMod.useUIStore.getState();
+      if (ps.theme) ui.setTheme(ps.theme);
+      if (ps.editorFont) ui.setEditorFontFamily(ps.editorFont);
+      if (ps.editorSize) ui.setEditorFontSize(ps.editorSize);
+    }
     set({
       activeProjectId: id,
       activeProject: project,
@@ -114,8 +152,12 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       ideas,
       timelineEvents,
       appearances,
+      noteDocuments,
+      trashItems,
       activeSceneId: null,
       activeScene: null,
+      activeNoteId: null,
+      activeNote: null,
       splitSceneId: null,
       snapshots: [],
     });
@@ -132,8 +174,12 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       ideas: [],
       timelineEvents: [],
       appearances: [],
+      noteDocuments: [],
+      trashItems: [],
       activeSceneId: null,
       activeScene: null,
+      activeNoteId: null,
+      activeNote: null,
       splitSceneId: null,
       snapshots: [],
     });
@@ -211,6 +257,27 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const scenes = await ops.getAllProjectScenes(pid);
     const activeScene = get().activeSceneId === id ? await ops.getScene(id) : get().activeScene;
     set({ scenes, activeScene: activeScene || null });
+  },
+
+  reorderChapters: async (orderedIds) => {
+    const pid = get().activeProjectId!;
+    await ops.reorderChapters(pid, orderedIds);
+    const chapters = await ops.getChapters(pid);
+    set({ chapters });
+  },
+
+  reorderScenes: async (chapterId, orderedIds) => {
+    await ops.reorderScenes(chapterId, orderedIds);
+    const pid = get().activeProjectId!;
+    const scenes = await ops.getAllProjectScenes(pid);
+    set({ scenes });
+  },
+
+  moveScene: async (sceneId, newChapterId) => {
+    await ops.moveScene(sceneId, newChapterId);
+    const pid = get().activeProjectId!;
+    const scenes = await ops.getAllProjectScenes(pid);
+    set({ scenes });
   },
 
   deleteScene: async (id) => {
@@ -352,5 +419,133 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       const snapshots = await ops.getSnapshots(sceneId);
       set({ snapshots });
     }
+  },
+
+  /* ---- Notes CRUD ---- */
+  createNote: async (title) => {
+    const pid = get().activeProjectId;
+    if (!pid) throw new Error('No active project');
+    const id = await ops.createNoteDocument(pid, title);
+    const noteDocuments = await ops.getNoteDocuments(pid);
+    set({ noteDocuments });
+    return id;
+  },
+
+  setActiveNote: async (id) => {
+    if (id === null) {
+      set({ activeNoteId: null, activeNote: null });
+      return;
+    }
+    const note = await ops.getNoteDocument(id);
+    set({ activeNoteId: id, activeNote: note || null, activeSceneId: null, activeScene: null });
+  },
+
+  updateNote: async (id, changes) => {
+    await ops.updateNoteDocument(id, changes);
+    const pid = get().activeProjectId!;
+    const noteDocuments = await ops.getNoteDocuments(pid);
+    const activeNote = get().activeNoteId === id ? await ops.getNoteDocument(id) : get().activeNote;
+    set({ noteDocuments, activeNote: activeNote || null });
+  },
+
+  deleteNote: async (id) => {
+    await ops.deleteNoteDocument(id);
+    const pid = get().activeProjectId!;
+    const noteDocuments = await ops.getNoteDocuments(pid);
+    if (get().activeNoteId === id) set({ activeNoteId: null, activeNote: null });
+    set({ noteDocuments });
+  },
+
+  /* ---- Trash ---- */
+  loadTrash: async () => {
+    const pid = get().activeProjectId!;
+    const trashItems = await ops.getTrashItems(pid);
+    set({ trashItems });
+  },
+
+  trashScene: async (id) => {
+    const pid = get().activeProjectId!;
+    const scene = await ops.getScene(id);
+    if (!scene) return;
+    await ops.trashItem(pid, 'scene', JSON.stringify(scene), scene.title);
+    await ops.deleteScene(id);
+    const scenes = await ops.getAllProjectScenes(pid);
+    const trashItems = await ops.getTrashItems(pid);
+    if (get().activeSceneId === id) set({ activeSceneId: null, activeScene: null, snapshots: [] });
+    if (get().splitSceneId === id) set({ splitSceneId: null });
+    set({ scenes, trashItems });
+  },
+
+  trashChapter: async (id) => {
+    const pid = get().activeProjectId!;
+    const ch = (await ops.getChapters(pid)).find(c => c.id === id);
+    if (!ch) return;
+    const chScenes = await ops.getScenes(id);
+    await ops.trashItem(pid, 'chapter', JSON.stringify({ chapter: ch, scenes: chScenes }), ch.title);
+    await ops.deleteChapter(id);
+    const chapters = await ops.getChapters(pid);
+    const scenes = await ops.getAllProjectScenes(pid);
+    const trashItems = await ops.getTrashItems(pid);
+    set({ chapters, scenes, trashItems });
+  },
+
+  trashCharacter: async (id) => {
+    const pid = get().activeProjectId!;
+    const chars = await ops.getCharacters(pid);
+    const char = chars.find(c => c.id === id);
+    if (!char) return;
+    await ops.trashItem(pid, 'character', JSON.stringify(char), char.name);
+    await ops.deleteCharacter(id);
+    const characters = await ops.getCharacters(pid);
+    const relationships = await ops.getRelationships(pid);
+    const appearances = await ops.getAppearances(pid);
+    const trashItems = await ops.getTrashItems(pid);
+    set({ characters, relationships, appearances, trashItems });
+  },
+
+  restoreTrashItem: async (id) => {
+    const pid = get().activeProjectId!;
+    const items = await ops.getTrashItems(pid);
+    const item = items.find(i => i.id === id);
+    if (!item) return;
+    const data = JSON.parse(item.data);
+
+    if (item.itemType === 'scene') {
+      const { id: _oldId, ...rest } = data;
+      await ops.createScene(rest.chapterId, rest.projectId, rest.title).catch(() => null);
+      const lastScene = (await ops.getAllProjectScenes(pid)).slice(-1)[0];
+      if (lastScene?.id) {
+        await ops.updateScene(lastScene.id, { content: rest.content, synopsis: rest.synopsis, status: rest.status });
+      }
+    } else if (item.itemType === 'chapter') {
+      const newChId = await ops.createChapter(pid, data.chapter.title);
+      for (const sc of data.scenes || []) {
+        const newScId = await ops.createScene(newChId, pid, sc.title);
+        await ops.updateScene(newScId, { content: sc.content, synopsis: sc.synopsis, status: sc.status });
+      }
+    } else if (item.itemType === 'character') {
+      const { id: _oldId, ...rest } = data;
+      await ops.createCharacter(pid, rest);
+    }
+
+    await ops.deleteTrashItem(id);
+    const chapters = await ops.getChapters(pid);
+    const scenes = await ops.getAllProjectScenes(pid);
+    const characters = await ops.getCharacters(pid);
+    const trashItems = await ops.getTrashItems(pid);
+    set({ chapters, scenes, characters, trashItems });
+  },
+
+  deleteTrashItem: async (id) => {
+    await ops.deleteTrashItem(id);
+    const pid = get().activeProjectId!;
+    const trashItems = await ops.getTrashItems(pid);
+    set({ trashItems });
+  },
+
+  emptyTrash: async () => {
+    const pid = get().activeProjectId!;
+    await ops.emptyTrash(pid);
+    set({ trashItems: [] });
   },
 }));

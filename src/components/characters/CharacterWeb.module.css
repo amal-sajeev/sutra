@@ -194,6 +194,73 @@
   color: var(--accent-primary);
 }
 
+.cardActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cardEditBtn {
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 4px;
+  color: var(--accent-primary);
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.cardEditBtn:hover {
+  background: var(--accent-glow);
+}
+
+.editForm {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.editLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 4px;
+}
+
+.editInput {
+  padding: 4px 8px;
+  font-size: 0.85rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--divider);
+  border-radius: 4px;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.editInput:focus {
+  border-color: var(--accent-primary);
+}
+
+.editTextarea {
+  padding: 4px 8px;
+  font-size: 0.85rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--divider);
+  border-radius: 4px;
+  color: var(--text-primary);
+  outline: none;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.editTextarea:focus {
+  border-color: var(--accent-primary);
+}
+
 .deleteCharBtn {
   margin-top: 12px;
   font-size: 0.95rem;

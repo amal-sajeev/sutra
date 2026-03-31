@@ -148,3 +148,46 @@ textarea {
   clip: rect(0, 0, 0, 0);
   border: 0;
 }
+
+/* ---- Skip Link ---- */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+  padding: 8px 16px;
+  z-index: 10000;
+  font-weight: 600;
+  transition: top 0.2s;
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
+/* ---- Reduced Motion ---- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+
+  [data-tooltip]::after {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  html {
+    font-size: 15px;
+  }
+}

@@ -18,7 +18,10 @@ interface IdeaLink extends SimulationLinkDatum<IdeaNode> {
 
 export default function IdeaConstellation() {
   const ideas = useProjectStore((s) => s.ideas);
+  const scenes = useProjectStore((s) => s.scenes);
   const deleteIdea = useProjectStore((s) => s.deleteIdea);
+  const updateIdea = useProjectStore((s) => s.updateIdea);
+  const setActiveScene = useProjectStore((s) => s.setActiveScene);
   const similarities = useIdeaStore((s) => s.similarities);
   const rebuildIndex = useIdeaStore((s) => s.rebuildIndex);
 
@@ -29,6 +32,7 @@ export default function IdeaConstellation() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [hoveredId, setHoveredId] = useState<number | null>(null);
   const [hoverPos, setHoverPos] = useState<{ x: number; y: number } | null>(null);
+  const [editingIdea, setEditingIdea] = useState<{ content: string; tags: string[] } | null>(null);
   const [viewBox, setViewBox] = useState({ x: -300, y: -250, w: 600, h: 500 });
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
@@ -275,21 +279,90 @@ export default function IdeaConstellation() {
           exit={{ opacity: 0, y: 10 }}
         >
           <div className={styles.detailContent}>
-            <p>{selectedIdea.content}</p>
-            {selectedIdea.tags.length > 0 && (
-              <div className={styles.tags}>
-                {selectedIdea.tags.map((tag) => (
-                  <span key={tag} className={styles.tag}>#{tag}</span>
-                ))}
+            {editingIdea ? (
+              <div className={styles.editArea}>
+                <input
+                  className={styles.editInput}
+                  value={editingIdea.content}
+                  onChange={(e) => setEditingIdea({ ...editingIdea, content: e.target.value })}
+                  autoFocus
+                />
+                <input
+                  className={styles.editInput}
+                  value={editingIdea.tags.map((t) => `#${t}`).join(' ')}
+                  onChange={(e) => {
+                    const tagRegex = /#(\w+)/g;
+                    const newTags: string[] = [];
+                    let m;
+                    while ((m = tagRegex.exec(e.target.value)) !== null) newTags.push(m[1]);
+                    setEditingIdea({ ...editingIdea, tags: newTags });
+                  }}
+                  placeholder="#tags separated by spaces"
+                />
+                <div className={styles.editActions}>
+                  <button
+                    className={styles.saveBtn}
+                    onClick={() => {
+                      updateIdea(selectedIdea.id!, { content: editingIdea.content, tags: editingIdea.tags });
+                      setEditingIdea(null);
+                    }}
+                  >Save</button>
+                  <button className={styles.cancelBtn} onClick={() => setEditingIdea(null)}>Cancel</button>
+                </div>
               </div>
+            ) : (
+              <>
+                <p>{selectedIdea.content}</p>
+                {selectedIdea.tags.length > 0 && (
+                  <div className={styles.tags}>
+                    {selectedIdea.tags.map((tag) => (
+                      <span key={tag} className={styles.tag}>#{tag}</span>
+                    ))}
+                  </div>
+                )}
+                {selectedIdea.linkedSceneId && (
+                  <button
+                    className={styles.linkedScene}
+                    onClick={() => {
+                      setActiveScene(selectedIdea.linkedSceneId!);
+                    }}
+                  >
+                    Linked: {scenes.find((s) => s.id === selectedIdea.linkedSceneId)?.title || 'Scene'}
+                  </button>
+                )}
+                <div className={styles.linkRow}>
+                  <select
+                    className={styles.linkSelect}
+                    value={selectedIdea.linkedSceneId || ''}
+                    onChange={(e) => {
+                      const val = e.target.value ? Number(e.target.value) : undefined;
+                      updateIdea(selectedIdea.id!, { linkedSceneId: val });
+                    }}
+                  >
+                    <option value="">Link to scene...</option>
+                    {scenes.map((s) => (
+                      <option key={s.id} value={s.id}>{s.title}</option>
+                    ))}
+                  </select>
+                </div>
+              </>
             )}
             <div className={styles.detailMeta}>
               <span>{new Date(selectedIdea.createdAt).toLocaleDateString()}</span>
+              {!editingIdea && (
+                <button
+                  className={styles.editBtn}
+                  onClick={() => setEditingIdea({ content: selectedIdea.content, tags: [...selectedIdea.tags] })}
+                >
+                  Edit
+                </button>
+              )}
               <button
                 className={styles.deleteBtn}
                 onClick={() => {
                   deleteIdea(selectedIdea.id!);
                   setSelectedId(null);
+                  setEditingIdea(null);
                 }}
               >
                 Delete
@@ -302,7 +375,7 @@ export default function IdeaConstellation() {
       {ideas.length === 0 && (
         <div className={styles.empty}>
           <p>No ideas captured yet</p>
-          <p className={styles.emptyHint}>Press Ctrl+Space to capture a thought</p>
+          <p className={styles.emptyHint}>Press Ctrl+Shift+I to capture a thought</p>
         </div>
       )}
     </div>

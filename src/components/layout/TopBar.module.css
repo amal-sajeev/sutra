@@ -70,6 +70,53 @@
   font-weight: 600;
   color: var(--text-primary);
   margin-left: 4px;
+  cursor: default;
+}
+
+.titleInput {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-left: 4px;
+  background: var(--bg-primary);
+  border: 1px solid var(--accent-primary);
+  border-radius: 4px;
+  padding: 2px 8px;
+  outline: none;
+  width: 200px;
+}
+
+.viewModes {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 8px;
+  padding: 2px;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+}
+
+.viewBtn {
+  width: 30px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+  transition: all var(--transition-fast);
+}
+
+.viewBtn:hover {
+  color: var(--text-primary);
+  background: var(--bg-panel-hover);
+}
+
+.viewBtnActive {
+  color: var(--accent-primary);
+  background: var(--bg-panel);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
 }
 
 .panelBtn {
@@ -99,4 +146,36 @@
 
 .panelLabel {
   font-weight: 600;
+}
+
+
+@media (max-width: 768px) {
+  .panelLabel {
+    display: none;
+  }
+
+  .panelBtn {
+    padding: 7px 10px;
+  }
+
+  .captureBtn span {
+    display: none;
+  }
+
+  .captureBtn {
+    padding: 7px 10px;
+  }
+
+  .projectTitle {
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 480px) {
+  .center {
+    display: none;
+  }
 }

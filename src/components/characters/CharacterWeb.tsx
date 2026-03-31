@@ -38,6 +38,7 @@ export default function CharacterWeb() {
   const characters = useProjectStore((s) => s.characters);
   const relationships = useProjectStore((s) => s.relationships);
   const createCharacter = useProjectStore((s) => s.createCharacter);
+  const updateCharacter = useProjectStore((s) => s.updateCharacter);
   const deleteCharacter = useProjectStore((s) => s.deleteCharacter);
   const createRelationship = useProjectStore((s) => s.createRelationship);
   const activeProjectId = useProjectStore((s) => s.activeProjectId);
@@ -45,6 +46,8 @@ export default function CharacterWeb() {
   const [nodes, setNodes] = useState<CharNode[]>([]);
   const [links, setLinks] = useState<CharLink[]>([]);
   const [selectedChar, setSelectedChar] = useState<Character | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [editFields, setEditFields] = useState<Partial<Character>>({});
   const [showAddChar, setShowAddChar] = useState(false);
   const [showAddRel, setShowAddRel] = useState(false);
   const [newName, setNewName] = useState('');
@@ -224,7 +227,7 @@ export default function CharacterWeb() {
                   fontWeight={700}
                   opacity={0.9}
                 >
-                  {link.relationship.type}
+                  {link.relationship.label || link.relationship.type}
                 </text>
               </g>
             );
@@ -285,17 +288,69 @@ export default function CharacterWeb() {
             <div className={styles.cardHeader}>
               <span className={styles.cardDot} style={{ background: selectedChar.color }} />
               <span className={styles.cardName}>{selectedChar.name}</span>
-              <button className={styles.cardClose} onClick={() => setSelectedChar(null)}>x</button>
+              <div className={styles.cardActions}>
+                <button
+                  className={styles.cardEditBtn}
+                  onClick={() => {
+                    if (editing) {
+                      updateCharacter(selectedChar.id!, editFields);
+                      const updated = { ...selectedChar, ...editFields };
+                      setSelectedChar(updated);
+                      setEditing(false);
+                    } else {
+                      setEditFields({
+                        name: selectedChar.name,
+                        role: selectedChar.role || '',
+                        description: selectedChar.description || '',
+                        motivation: selectedChar.motivation || '',
+                        goal: selectedChar.goal || '',
+                        conflict: selectedChar.conflict || '',
+                        epiphany: selectedChar.epiphany || '',
+                        color: selectedChar.color,
+                      });
+                      setEditing(true);
+                    }
+                  }}
+                >
+                  {editing ? 'Save' : 'Edit'}
+                </button>
+                <button className={styles.cardClose} onClick={() => { setSelectedChar(null); setEditing(false); }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
+              </div>
             </div>
-            {selectedChar.role && <p className={styles.cardRole}>{selectedChar.role}</p>}
-            {selectedChar.description && <p className={styles.cardDesc}>{selectedChar.description}</p>}
-            {selectedChar.motivation && <p className={styles.cardField}><strong>Motivation:</strong> {selectedChar.motivation}</p>}
-            {selectedChar.goal && <p className={styles.cardField}><strong>Goal:</strong> {selectedChar.goal}</p>}
-            {selectedChar.conflict && <p className={styles.cardField}><strong>Conflict:</strong> {selectedChar.conflict}</p>}
-            {selectedChar.epiphany && <p className={styles.cardField}><strong>Epiphany:</strong> {selectedChar.epiphany}</p>}
+            {editing ? (
+              <div className={styles.editForm}>
+                <label className={styles.editLabel}>Name</label>
+                <input className={styles.editInput} value={editFields.name || ''} onChange={(e) => setEditFields({ ...editFields, name: e.target.value })} />
+                <label className={styles.editLabel}>Role</label>
+                <input className={styles.editInput} value={editFields.role || ''} onChange={(e) => setEditFields({ ...editFields, role: e.target.value })} placeholder="e.g. Protagonist, Antagonist..." />
+                <label className={styles.editLabel}>Color</label>
+                <input type="color" value={editFields.color || '#5a9e9e'} onChange={(e) => setEditFields({ ...editFields, color: e.target.value })} className={styles.colorPicker} />
+                <label className={styles.editLabel}>Description</label>
+                <textarea className={styles.editTextarea} value={editFields.description || ''} onChange={(e) => setEditFields({ ...editFields, description: e.target.value })} placeholder="Physical appearance, personality..." rows={2} />
+                <label className={styles.editLabel}>Motivation</label>
+                <input className={styles.editInput} value={editFields.motivation || ''} onChange={(e) => setEditFields({ ...editFields, motivation: e.target.value })} />
+                <label className={styles.editLabel}>Goal</label>
+                <input className={styles.editInput} value={editFields.goal || ''} onChange={(e) => setEditFields({ ...editFields, goal: e.target.value })} />
+                <label className={styles.editLabel}>Conflict</label>
+                <input className={styles.editInput} value={editFields.conflict || ''} onChange={(e) => setEditFields({ ...editFields, conflict: e.target.value })} />
+                <label className={styles.editLabel}>Epiphany</label>
+                <input className={styles.editInput} value={editFields.epiphany || ''} onChange={(e) => setEditFields({ ...editFields, epiphany: e.target.value })} />
+              </div>
+            ) : (
+              <>
+                {selectedChar.role && <p className={styles.cardRole}>{selectedChar.role}</p>}
+                {selectedChar.description && <p className={styles.cardDesc}>{selectedChar.description}</p>}
+                {selectedChar.motivation && <p className={styles.cardField}><strong>Motivation:</strong> {selectedChar.motivation}</p>}
+                {selectedChar.goal && <p className={styles.cardField}><strong>Goal:</strong> {selectedChar.goal}</p>}
+                {selectedChar.conflict && <p className={styles.cardField}><strong>Conflict:</strong> {selectedChar.conflict}</p>}
+                {selectedChar.epiphany && <p className={styles.cardField}><strong>Epiphany:</strong> {selectedChar.epiphany}</p>}
+              </>
+            )}
             <button
               className={styles.deleteCharBtn}
-              onClick={() => { deleteCharacter(selectedChar.id!); setSelectedChar(null); }}
+              onClick={() => { deleteCharacter(selectedChar.id!); setSelectedChar(null); setEditing(false); }}
             >
               Delete Character
             </button>

@@ -1,0 +1,181 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.statGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.statCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 14px 8px;
+  border-radius: 8px;
+  background: var(--bg-secondary);
+}
+
+.statValue {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.statLabel {
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sectionTitle {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.targetRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.targetInput {
+  width: 120px;
+  padding: 6px 10px;
+  font-size: 0.9rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--divider);
+  border-radius: 4px;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.targetInput:focus {
+  border-color: var(--accent-primary);
+}
+
+.targetLabel {
+  font-size: 0.82rem;
+  color: var(--text-tertiary);
+}
+
+.progressWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.progressBar {
+  height: 8px;
+  background: var(--bg-secondary);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--accent-primary);
+  transition: width 0.4s ease;
+}
+
+.sessionFill {
+  background: #4aa86a;
+}
+
+.progressText {
+  font-size: 0.76rem;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.miniGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.miniGrid strong {
+  color: var(--text-primary);
+}
+
+.chartWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.streakBadge {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+  align-self: flex-start;
+  padding: 2px 10px;
+  border-radius: 10px;
+  background: var(--accent-glow);
+}
+
+.chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 80px;
+  padding: 4px 0;
+}
+
+.chartBar {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  height: 100%;
+  justify-content: flex-end;
+}
+
+.chartBarFill {
+  width: 100%;
+  min-height: 2px;
+  background: var(--accent-primary);
+  border-radius: 2px 2px 0 0;
+  transition: height 0.3s ease;
+}
+
+.chartLabel {
+  font-size: 0.6rem;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.chartTotal {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.chartTotal strong {
+  color: var(--text-primary);
+}
+
+@media (max-width: 480px) {
+  .statGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

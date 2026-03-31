@@ -148,6 +148,17 @@
   font-size: 0.9em;
 }
 
+.prosemirror :global(.editor-link) {
+  color: var(--accent-primary);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  cursor: pointer;
+}
+
+.prosemirror :global(.editor-link):hover {
+  text-decoration-style: solid;
+}
+
 .prosemirror strong {
   font-weight: 700;
 }
@@ -196,4 +207,80 @@
   margin-left: auto;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+}
+
+.statusBtn {
+  margin-left: auto;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.9rem;
+  color: var(--text-tertiary);
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.statusBtn:hover {
+  background: var(--bg-panel-hover);
+  color: var(--accent-primary);
+}
+
+.synopsisArea {
+  padding: 0 24px 8px;
+  border-bottom: 1px solid var(--divider);
+}
+
+.synopsisToggle {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px 0;
+  transition: color var(--transition-fast);
+}
+
+.synopsisToggle:hover {
+  color: var(--text-secondary);
+}
+
+.synopsisInput {
+  width: 100%;
+  background: transparent;
+  border: 1px solid var(--divider);
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  resize: vertical;
+  min-height: 40px;
+  font-family: inherit;
+  margin-top: 4px;
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.synopsisInput:focus {
+  border-color: var(--accent-primary);
+}
+
+.goalProgress {
+  color: var(--accent-primary);
+  font-size: 0.8rem;
+}
+
+.saveIndicator {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: opacity var(--transition-fast);
+}
+
+.saveIndicator.saving {
+  color: var(--accent-warm);
+}
+
+.saveIndicator.saved {
+  color: var(--accent-primary);
 }

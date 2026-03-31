@@ -9,6 +9,9 @@ import type {
   TimelineEvent,
   CharacterAppearance,
   Snapshot,
+  NoteDocument,
+  WritingHistory,
+  TrashItem,
 } from '../types';
 
 /* ==============================
@@ -68,6 +71,14 @@ export async function updateChapter(id: number, changes: Partial<Chapter>): Prom
   await db.chapters.update(id, changes);
 }
 
+export async function reorderChapters(_projectId: number, orderedIds: number[]): Promise<void> {
+  await db.transaction('rw', db.chapters, async () => {
+    for (let i = 0; i < orderedIds.length; i++) {
+      await db.chapters.update(orderedIds[i], { order: i });
+    }
+  });
+}
+
 export async function deleteChapter(id: number): Promise<void> {
   await db.transaction('rw', [db.chapters, db.scenes, db.snapshots], async () => {
     const scenes = await db.scenes.where('chapterId').equals(id).toArray();
@@ -111,6 +122,19 @@ export async function getAllProjectScenes(projectId: number): Promise<Scene[]> {
 
 export async function updateScene(id: number, changes: Partial<Scene>): Promise<void> {
   await db.scenes.update(id, { ...changes, lastEditedAt: Date.now() });
+}
+
+export async function reorderScenes(_chapterId: number, orderedIds: number[]): Promise<void> {
+  await db.transaction('rw', db.scenes, async () => {
+    for (let i = 0; i < orderedIds.length; i++) {
+      await db.scenes.update(orderedIds[i], { order: i });
+    }
+  });
+}
+
+export async function moveScene(sceneId: number, newChapterId: number): Promise<void> {
+  const count = await db.scenes.where('chapterId').equals(newChapterId).count();
+  await db.scenes.update(sceneId, { chapterId: newChapterId, order: count });
 }
 
 export async function deleteScene(id: number): Promise<void> {
@@ -387,9 +411,11 @@ export async function importProject(data: ReturnType<typeof exportProject> exten
       });
     }
 
-    // 7. Timeline events
+    // 7. Timeline events — remap IDs
+    const timelineIdMap = new Map<number, number>();
     for (const evt of data.timelineEvents) {
-      await db.timelineEvents.add({
+      const oldId = evt.id!;
+      const newId = await db.timelineEvents.add({
         projectId: newProjectId,
         title: evt.title,
         position: evt.position,
@@ -397,6 +423,7 @@ export async function importProject(data: ReturnType<typeof exportProject> exten
         color: evt.color,
         description: evt.description,
       });
+      timelineIdMap.set(oldId, newId);
     }
 
     // 8. Character appearances — remap characterId, sceneId, timelineEventId
@@ -405,6 +432,7 @@ export async function importProject(data: ReturnType<typeof exportProject> exten
         characterId: characterIdMap.get(app.characterId) || app.characterId,
         projectId: newProjectId,
         sceneId: app.sceneId ? sceneIdMap.get(app.sceneId) : undefined,
+        timelineEventId: app.timelineEventId ? timelineIdMap.get(app.timelineEventId) : undefined,
         position: app.position,
         fortune: app.fortune ?? 0.5,
         note: app.note,
@@ -426,4 +454,83 @@ export async function importProject(data: ReturnType<typeof exportProject> exten
 
     return newProjectId;
   });
+}
+
+/* ==============================
+   Note Document Operations
+   ============================== */
+
+export async function createNoteDocument(projectId: number, title: string): Promise<number> {
+  const count = await db.noteDocuments.where('projectId').equals(projectId).count();
+  return db.noteDocuments.add({
+    projectId,
+    title,
+    content: '',
+    order: count,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  });
+}
+
+export async function getNoteDocuments(projectId: number): Promise<NoteDocument[]> {
+  return db.noteDocuments.where('projectId').equals(projectId).sortBy('order');
+}
+
+export async function getNoteDocument(id: number): Promise<NoteDocument | undefined> {
+  return db.noteDocuments.get(id);
+}
+
+export async function updateNoteDocument(id: number, changes: Partial<NoteDocument>): Promise<void> {
+  await db.noteDocuments.update(id, { ...changes, updatedAt: Date.now() });
+}
+
+export async function deleteNoteDocument(id: number): Promise<void> {
+  await db.noteDocuments.delete(id);
+}
+
+/* ==============================
+   Writing History Operations
+   ============================== */
+
+export async function recordWritingHistory(projectId: number, wordsWritten: number, totalWords: number): Promise<void> {
+  const date = new Date().toISOString().slice(0, 10);
+  const existing = await db.writingHistory.where('[projectId+date]').equals([projectId, date]).first();
+  if (existing?.id) {
+    await db.writingHistory.update(existing.id, {
+      wordsWritten: existing.wordsWritten + wordsWritten,
+      totalWords,
+    });
+  } else {
+    await db.writingHistory.add({ projectId, date, wordsWritten, totalWords });
+  }
+}
+
+export async function getWritingHistory(projectId: number, days = 30): Promise<WritingHistory[]> {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  const cutoffStr = cutoff.toISOString().slice(0, 10);
+  return db.writingHistory
+    .where('projectId').equals(projectId)
+    .filter(h => h.date >= cutoffStr)
+    .sortBy('date');
+}
+
+/* ==============================
+   Trash Operations
+   ============================== */
+
+export async function trashItem(projectId: number, itemType: TrashItem['itemType'], data: string, originalTitle: string): Promise<number> {
+  return db.trash.add({ projectId, itemType, data, deletedAt: Date.now(), originalTitle });
+}
+
+export async function getTrashItems(projectId: number): Promise<TrashItem[]> {
+  return db.trash.where('projectId').equals(projectId).reverse().sortBy('deletedAt');
+}
+
+export async function deleteTrashItem(id: number): Promise<void> {
+  await db.trash.delete(id);
+}
+
+export async function emptyTrash(projectId: number): Promise<void> {
+  await db.trash.where('projectId').equals(projectId).delete();
 }

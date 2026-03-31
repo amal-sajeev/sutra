@@ -41,6 +41,7 @@ export default function SnowflakeWizard({ onClose }: SnowflakeWizardProps) {
   const updateProject = useProjectStore((s) => s.updateProject);
   const createCharacter = useProjectStore((s) => s.createCharacter);
   const createChapter = useProjectStore((s) => s.createChapter);
+  const createScene = useProjectStore((s) => s.createScene);
   const activeProjectId = useProjectStore((s) => s.activeProjectId);
 
   const currentStep = STEPS[step];
@@ -76,16 +77,21 @@ export default function SnowflakeWizard({ onClose }: SnowflakeWizardProps) {
       }
     }
 
-    // Create initial chapter structure from paragraph
+    // Create initial chapter structure with scenes
     if (values.oneParag) {
-      const sentences = values.oneParag.split(/\.\s+/).filter((s) => s.trim());
-      if (sentences.length > 0) {
-        await createChapter('Act I — Setup');
-        await createChapter('Act II — Rising Action');
-        await createChapter('Act III — Resolution');
-      }
+      const ch1 = await createChapter('Act I — Setup');
+      await createScene(ch1, 'Opening Scene');
+      await createScene(ch1, 'Inciting Incident');
+      const ch2 = await createChapter('Act II — Rising Action');
+      await createScene(ch2, 'First Complication');
+      await createScene(ch2, 'Midpoint');
+      await createScene(ch2, 'Crisis');
+      const ch3 = await createChapter('Act III — Resolution');
+      await createScene(ch3, 'Climax');
+      await createScene(ch3, 'Resolution');
     } else {
-      await createChapter('Chapter 1');
+      const ch1 = await createChapter('Chapter 1');
+      await createScene(ch1, 'Scene 1');
     }
 
     onClose();

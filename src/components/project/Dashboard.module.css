@@ -142,12 +142,87 @@
   gap: 16px;
 }
 
+.projectsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.projectControls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.searchInput {
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  width: 160px;
+  transition: border-color var(--transition-fast);
+}
+
+.searchInput:focus {
+  border-color: var(--accent-primary);
+  outline: none;
+}
+
+.sortSelect {
+  padding: 6px 8px;
+  font-size: 0.85rem;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
 .sectionTitle {
   font-size: 0.95rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-secondary);
   font-weight: 600;
+}
+
+.noResults {
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 0.9rem;
+  padding: 20px;
+}
+
+.renameInput {
+  width: 100%;
+  padding: 4px 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  background: var(--bg-elevated, var(--bg-primary));
+  border: 1px solid var(--accent-primary);
+  border-radius: 3px;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.renameBtn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: var(--text-muted);
+  transition: all var(--transition-fast);
+}
+
+.renameBtn:hover {
+  background: var(--accent-glow);
+  color: var(--accent-primary);
 }
 
 .grid {
@@ -230,4 +305,51 @@
 .deleteBtn:hover {
   background: rgba(238, 85, 85, 0.1);
   color: #e55;
+}
+
+@media (max-width: 768px) {
+  .dashboard {
+    align-items: flex-start;
+    padding-top: 40px;
+  }
+
+  .content {
+    width: 95%;
+    gap: 24px;
+  }
+
+  .titleSanskrit {
+    font-size: 2rem;
+  }
+
+  .titleLatin {
+    font-size: 1.5rem;
+  }
+
+  .secondaryActions {
+    flex-wrap: wrap;
+  }
+
+  .projectControls {
+    width: 100%;
+  }
+
+  .searchInput {
+    flex: 1;
+    width: auto;
+  }
+
+  .cardActions {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 480px) {
+  .inputRow {
+    flex-direction: column;
+  }
+
+  .createBtn {
+    width: 100%;
+  }
 }

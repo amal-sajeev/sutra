@@ -6,6 +6,7 @@ import Dashboard from './components/project/Dashboard';
 import ProjectWorkspace from './components/layout/ProjectWorkspace';
 import QuickCapture from './components/capture/QuickCapture';
 import DigitalRain from './components/ui/DigitalRain';
+import ToastContainer from './components/ui/ToastContainer';
 
 export default function App() {
   const theme = useUIStore((s) => s.theme);
@@ -23,17 +24,21 @@ export default function App() {
   }, []);
 
   return (
-    <div className="app-shell" style={{ position: 'relative', height: '100vh', width: '100vw' }}>
+    <div className="app-shell" style={{ position: 'relative', height: '100vh', width: '100vw' }} role="application" aria-label="Sutra Writing Application">
+      <a href="#main-content" className="skip-link">Skip to content</a>
       {theme === 'matrix' && digitalRain && <DigitalRain />}
 
+      <main id="main-content">
       <AnimatePresence mode="wait">
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/project/:id" element={<ProjectWorkspace />} />
         </Routes>
       </AnimatePresence>
+      </main>
 
       <QuickCapture />
+      <ToastContainer />
     </div>
   );
 }

@@ -1,0 +1,160 @@
+.container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+  gap: 14px;
+  overflow-y: auto;
+}
+
+.placeholder {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  font-size: 0.85rem;
+}
+
+.title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  margin-bottom: 2px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+}
+
+.textarea {
+  padding: 6px 8px;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  background: var(--bg-primary);
+  border: 1px solid var(--divider);
+  border-radius: 4px;
+  color: var(--text-primary);
+  resize: vertical;
+  outline: none;
+  font-family: inherit;
+}
+
+.textarea:focus {
+  border-color: var(--accent-primary);
+}
+
+.select,
+.input {
+  padding: 5px 8px;
+  font-size: 0.82rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--divider);
+  border-radius: 4px;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.select:focus,
+.input:focus {
+  border-color: var(--accent-primary);
+}
+
+.targetRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.targetRow .input {
+  flex: 1;
+}
+
+.targetCount {
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.progressBar {
+  height: 4px;
+  background: var(--bg-secondary);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 2px;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent-primary);
+  transition: width 0.3s ease;
+}
+
+.snapRow {
+  display: flex;
+  gap: 4px;
+}
+
+.snapRow .input {
+  flex: 1;
+}
+
+.snapBtn {
+  padding: 4px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+  border: 1px solid var(--border-active);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.snapBtn:hover {
+  background: var(--accent-glow);
+}
+
+.snapList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+}
+
+.snapItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 3px 6px;
+  border-radius: 3px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.snapItem:hover {
+  background: var(--bg-secondary);
+}
+
+.snapDate {
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+}
+
+.snapMore {
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  padding: 2px 6px;
+}

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { ThemeMode, RightPanelView } from '../types';
+import type { ThemeMode, RightPanelView, CenterView } from '../types';
 
 interface UIState {
   theme: ThemeMode;
@@ -13,6 +13,11 @@ interface UIState {
   splitEditor: boolean;
   digitalRain: boolean;
   zenMode: boolean;
+  centerView: CenterView;
+  inspectorOpen: boolean;
+  editorFontFamily: string;
+  editorFontSize: number;
+  wordCountGoal: number;
 
   setTheme: (theme: ThemeMode) => void;
   toggleTheme: () => void;
@@ -28,6 +33,12 @@ interface UIState {
   setSplitEditor: (on: boolean) => void;
   setDigitalRain: (on: boolean) => void;
   setZenMode: (on: boolean) => void;
+  setCenterView: (view: CenterView) => void;
+  setInspectorOpen: (open: boolean) => void;
+  toggleInspector: () => void;
+  setEditorFontFamily: (font: string) => void;
+  setEditorFontSize: (size: number) => void;
+  setWordCountGoal: (goal: number) => void;
 }
 
 const savedTheme = (localStorage.getItem('sutra-theme') as ThemeMode) || 'lain';
@@ -44,6 +55,11 @@ export const useUIStore = create<UIState>((set) => ({
   splitEditor: false,
   digitalRain: true,
   zenMode: false,
+  centerView: 'editor',
+  inspectorOpen: false,
+  editorFontFamily: localStorage.getItem('sutra-editor-font') || 'Georgia, serif',
+  editorFontSize: Number(localStorage.getItem('sutra-editor-size')) || 18,
+  wordCountGoal: Number(localStorage.getItem('sutra-word-goal')) || 0,
 
   setTheme: (theme) => {
     localStorage.setItem('sutra-theme', theme);
@@ -70,4 +86,19 @@ export const useUIStore = create<UIState>((set) => ({
   setSplitEditor: (on) => set({ splitEditor: on }),
   setDigitalRain: (on) => set({ digitalRain: on }),
   setZenMode: (on) => set({ zenMode: on, focusMode: on }),
+  setCenterView: (view) => set({ centerView: view }),
+  setInspectorOpen: (open) => set({ inspectorOpen: open }),
+  toggleInspector: () => set((s) => ({ inspectorOpen: !s.inspectorOpen })),
+  setEditorFontFamily: (font) => {
+    localStorage.setItem('sutra-editor-font', font);
+    set({ editorFontFamily: font });
+  },
+  setEditorFontSize: (size) => {
+    localStorage.setItem('sutra-editor-size', String(size));
+    set({ editorFontSize: size });
+  },
+  setWordCountGoal: (goal) => {
+    localStorage.setItem('sutra-word-goal', String(goal));
+    set({ wordCountGoal: goal });
+  },
 }));

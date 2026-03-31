@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef, useState } from 'react';
+import { useEffect, useCallback, useRef, useState, lazy, Suspense } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useProjectStore } from '../../stores/projectStore';
@@ -10,6 +10,12 @@ import SplitEditor from '../editor/SplitEditor';
 import RightPanel from './RightPanel';
 import styles from './ProjectWorkspace.module.css';
 
+const Corkboard = lazy(() => import('../views/Corkboard'));
+const Outliner = lazy(() => import('../views/Outliner'));
+const Scrivenings = lazy(() => import('../views/Scrivenings'));
+const InspectorPanel = lazy(() => import('../views/InspectorPanel'));
+const NoteEditor = lazy(() => import('../views/NoteEditor'));
+
 export default function ProjectWorkspace() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -17,6 +23,7 @@ export default function ProjectWorkspace() {
   const activeProject = useProjectStore((s) => s.activeProject);
   const unloadProject = useProjectStore((s) => s.unloadProject);
   const activeScene = useProjectStore((s) => s.activeScene);
+  const activeNote = useProjectStore((s) => s.activeNote);
   const splitSceneId = useProjectStore((s) => s.splitSceneId);
   const sidebarOpen = useUIStore((s) => s.sidebarOpen);
   const rightPanel = useUIStore((s) => s.rightPanel);
@@ -24,6 +31,8 @@ export default function ProjectWorkspace() {
   const setRightPanelWidth = useUIStore((s) => s.setRightPanelWidth);
   const rightPanelMaximized = useUIStore((s) => s.rightPanelMaximized);
   const splitEditor = useUIStore((s) => s.splitEditor);
+  const centerView = useUIStore((s) => s.centerView);
+  const inspectorOpen = useUIStore((s) => s.inspectorOpen);
 
   const [isResizing, setIsResizing] = useState(false);
   const resizeRef = useRef<{ startX: number; startWidth: number } | null>(null);
@@ -119,21 +128,38 @@ export default function ProjectWorkspace() {
             </motion.div>
 
             <div className={styles.editorArea}>
-              {activeScene ? (
-                <div className={styles.editorContainer}>
-                  <Editor scene={activeScene} />
-                  {splitEditor && splitSceneId && <SplitEditor sceneId={splitSceneId} />}
-                </div>
-              ) : (
-                <div className={styles.emptyState}>
-                  <div className={styles.emptyContent}>
-                    <span className={styles.emptyIcon}>सू</span>
-                    <p>Select a scene from the sidebar to begin writing</p>
-                    <p className={styles.emptyHint}>or create a new chapter to get started</p>
+              <Suspense fallback={null}>
+                {centerView === 'corkboard' ? (
+                  <Corkboard />
+                ) : centerView === 'outliner' ? (
+                  <Outliner />
+                ) : centerView === 'scrivenings' ? (
+                  <Scrivenings />
+                ) : activeNote ? (
+                  <NoteEditor note={activeNote} />
+                ) : activeScene ? (
+                  <div className={styles.editorContainer}>
+                    <Editor scene={activeScene} />
+                    {splitEditor && splitSceneId && <SplitEditor sceneId={splitSceneId} />}
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div className={styles.emptyState}>
+                    <div className={styles.emptyContent}>
+                      <span className={styles.emptyIcon}>सू</span>
+                      <p>Select a scene from the sidebar to begin writing</p>
+                      <p className={styles.emptyHint}>or create a new chapter to get started</p>
+                    </div>
+                  </div>
+                )}
+              </Suspense>
             </div>
+            {inspectorOpen && activeScene && centerView === 'editor' && (
+              <Suspense fallback={null}>
+                <div className={styles.inspector}>
+                  <InspectorPanel />
+                </div>
+              </Suspense>
+            )}
           </>
         )}
 

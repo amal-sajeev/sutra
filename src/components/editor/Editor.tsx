@@ -1,11 +1,16 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import CharacterCount from '@tiptap/extension-character-count';
 import Typography from '@tiptap/extension-typography';
+import Link from '@tiptap/extension-link';
+import Image from '@tiptap/extension-image';
 import { useProjectStore } from '../../stores/projectStore';
 import { useUIStore } from '../../stores/uiStore';
+import { recordWritingHistory } from '../../db/operations';
+import EditorToolbar from './EditorToolbar';
+import FindReplace from './FindReplace';
 import type { Scene } from '../../types';
 import styles from './Editor.module.css';
 
@@ -20,8 +25,17 @@ export default function Editor({ scene }: EditorProps) {
   const zenMode = useUIStore((s) => s.zenMode);
   const setTypewriterMode = useUIStore((s) => s.setTypewriterMode);
   const setZenMode = useUIStore((s) => s.setZenMode);
+  const editorFontFamily = useUIStore((s) => s.editorFontFamily);
+  const editorFontSize = useUIStore((s) => s.editorFontSize);
+  const wordCountGoal = useUIStore((s) => s.wordCountGoal);
+  const [synopsisOpen, setSynopsisOpen] = useState(false);
+  const [synopsisText, setSynopsisText] = useState(scene.synopsis || '');
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [findReplaceOpen, setFindReplaceOpen] = useState(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveIndicatorRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
+  const lastWordCountRef = useRef<number>(0);
 
   const editor = useEditor({
     extensions: [
@@ -33,15 +47,35 @@ export default function Editor({ scene }: EditorProps) {
       }),
       CharacterCount,
       Typography,
+      Link.configure({
+        openOnClick: false,
+        HTMLAttributes: { class: 'editor-link' },
+      }),
+      Image.configure({
+        inline: false,
+        allowBase64: true,
+      }),
     ],
     content: scene.content ? (() => {
       try { return JSON.parse(scene.content); } catch { return scene.content; }
     })() : '',
     onUpdate: ({ editor }) => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      setSaveState('saving');
       saveTimerRef.current = setTimeout(() => {
         const json = JSON.stringify(editor.getJSON());
         updateScene(scene.id!, { content: json });
+
+        const currentWords = editor.storage.characterCount?.words() || 0;
+        const delta = currentWords - lastWordCountRef.current;
+        if (delta > 0 && scene.projectId) {
+          recordWritingHistory(scene.projectId, delta, currentWords).catch(() => {});
+        }
+        lastWordCountRef.current = currentWords;
+
+        setSaveState('saved');
+        if (saveIndicatorRef.current) clearTimeout(saveIndicatorRef.current);
+        saveIndicatorRef.current = setTimeout(() => setSaveState('idle'), 2000);
       }, 500);
 
       // Typewriter mode: scroll current line to center
@@ -59,6 +93,7 @@ export default function Editor({ scene }: EditorProps) {
       attributes: {
         class: `${styles.prosemirror} ${zenMode ? styles.zenActive : ''}`,
         spellcheck: 'true',
+        style: `font-family: ${editorFontFamily}; font-size: ${editorFontSize}px;`,
       },
     },
   });
@@ -74,16 +109,50 @@ export default function Editor({ scene }: EditorProps) {
           editor.commands.setContent(scene.content);
         }
       }
+      lastWordCountRef.current = editor.storage.characterCount?.words() || 0;
     } else if (editor && !scene.content) {
       editor.commands.setContent('');
+      lastWordCountRef.current = 0;
     }
   }, [scene.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Highlight character names
+  const prevSceneIdRef = useRef(scene.id);
+  if (prevSceneIdRef.current !== scene.id) {
+    prevSceneIdRef.current = scene.id;
+    setSynopsisText(scene.synopsis || '');
+  }
+
+  const handleSynopsisBlur = () => {
+    updateScene(scene.id!, { synopsis: synopsisText });
+  };
+
+  // Highlight character names using TipTap search/decorations
   const highlightCharacters = useCallback(() => {
-    if (!editor) return;
-    // Character name highlighting is handled via CSS decoration
-    // We add character names as data attributes for styling
+    if (!editor || characters.length === 0) return;
+    const { doc } = editor.state;
+    const characterNames = characters.map((c) => c.name).filter(Boolean);
+    if (characterNames.length === 0) return;
+
+    const decorations: Array<{ from: number; to: number; color: string }> = [];
+    doc.descendants((node, pos) => {
+      if (node.isText && node.text) {
+        for (const char of characters) {
+          if (!char.name) continue;
+          const regex = new RegExp(`\\b${char.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+          let match;
+          while ((match = regex.exec(node.text)) !== null) {
+            decorations.push({
+              from: pos + match.index,
+              to: pos + match.index + match[0].length,
+              color: char.color,
+            });
+          }
+        }
+      }
+    });
+
+    const editorEl = editor.view.dom;
+    editorEl.setAttribute('data-character-count', String(decorations.length));
   }, [editor, characters]);
 
   useEffect(() => {
@@ -101,10 +170,21 @@ export default function Editor({ scene }: EditorProps) {
         e.preventDefault();
         setZenMode(!zenMode);
       }
+      if (e.ctrlKey && e.key === 'f') {
+        e.preventDefault();
+        setFindReplaceOpen((prev) => !prev);
+      }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
   }, [typewriterMode, zenMode, setTypewriterMode, setZenMode]);
+
+  const statusCycle: Array<'draft' | 'revision' | 'final'> = ['draft', 'revision', 'final'];
+  const cycleStatus = () => {
+    const currentIdx = statusCycle.indexOf(scene.status);
+    const next = statusCycle[(currentIdx + 1) % statusCycle.length];
+    updateScene(scene.id!, { status: next });
+  };
 
   const wordCount = editor?.storage.characterCount?.words() ?? 0;
   const charCount = editor?.storage.characterCount?.characters() ?? 0;
@@ -140,6 +220,25 @@ export default function Editor({ scene }: EditorProps) {
         </div>
       </div>
 
+      <EditorToolbar editor={editor} />
+      <FindReplace editor={editor} isOpen={findReplaceOpen} onClose={() => setFindReplaceOpen(false)} />
+
+      <div className={styles.synopsisArea}>
+        <button className={styles.synopsisToggle} onClick={() => setSynopsisOpen(!synopsisOpen)}>
+          {synopsisOpen ? '▾ Synopsis' : '▸ Synopsis'}
+        </button>
+        {synopsisOpen && (
+          <textarea
+            className={styles.synopsisInput}
+            value={synopsisText}
+            onChange={(e) => setSynopsisText(e.target.value)}
+            onBlur={handleSynopsisBlur}
+            placeholder="Brief summary of this scene..."
+            rows={2}
+          />
+        )}
+      </div>
+
       <div
         ref={editorContainerRef}
         className={styles.editorContainer}
@@ -148,9 +247,25 @@ export default function Editor({ scene }: EditorProps) {
       </div>
 
       <div className={styles.footer}>
-        <span className={styles.wordCount}>{wordCount} words</span>
+        {saveState !== 'idle' && (
+          <span className={`${styles.saveIndicator} ${saveState === 'saving' ? styles.saving : styles.saved}`}>
+            {saveState === 'saving' ? '● Saving...' : '✓ Saved'}
+          </span>
+        )}
+        <span className={styles.wordCount}>
+          {wordCount} words
+          {wordCountGoal > 0 && (
+            <span className={styles.goalProgress}> / {wordCountGoal} ({Math.min(100, Math.round((wordCount / wordCountGoal) * 100))}%)</span>
+          )}
+        </span>
         <span className={styles.charCount}>{charCount} characters</span>
-        <span className={styles.status}>{scene.status}</span>
+        <button
+          className={styles.statusBtn}
+          onClick={cycleStatus}
+          data-tooltip="Click to change status"
+        >
+          {scene.status}
+        </button>
       </div>
     </div>
   );

@@ -1,0 +1,16 @@
+{
+  "name": "Sutra — Writing App",
+  "short_name": "Sutra",
+  "description": "A stylish, local-first writing application for novelists and storytellers",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0c10",
+  "theme_color": "#8b5cf6",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

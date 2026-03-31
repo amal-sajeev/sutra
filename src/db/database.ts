@@ -9,6 +9,9 @@ import type {
   TimelineEvent,
   CharacterAppearance,
   Snapshot,
+  NoteDocument,
+  WritingHistory,
+  TrashItem,
 } from '../types';
 
 class SutraDatabase extends Dexie {
@@ -21,6 +24,9 @@ class SutraDatabase extends Dexie {
   timelineEvents!: Table<TimelineEvent, number>;
   characterAppearances!: Table<CharacterAppearance, number>;
   snapshots!: Table<Snapshot, number>;
+  noteDocuments!: Table<NoteDocument, number>;
+  writingHistory!: Table<WritingHistory, number>;
+  trash!: Table<TrashItem, number>;
 
   constructor() {
     super('SutraDB');
@@ -37,7 +43,6 @@ class SutraDatabase extends Dexie {
       snapshots: '++id, sceneId, projectId, createdAt',
     });
 
-    // v2: add fortune field to character appearances (default 0.5 for existing)
     this.version(2).stores({
       characterAppearances: '++id, characterId, projectId, sceneId, position',
     }).upgrade((tx) => {
@@ -46,6 +51,21 @@ class SutraDatabase extends Dexie {
           app.fortune = 0.5;
         }
       });
+    });
+
+    this.version(3).stores({
+      projects: '++id, title, updatedAt',
+      chapters: '++id, projectId, order',
+      scenes: '++id, chapterId, projectId, order, lastEditedAt',
+      characters: '++id, projectId, name',
+      relationships: '++id, projectId, characterAId, characterBId',
+      ideas: '++id, projectId, createdAt, linkedSceneId',
+      timelineEvents: '++id, projectId, position',
+      characterAppearances: '++id, characterId, projectId, sceneId, position',
+      snapshots: '++id, sceneId, projectId, createdAt',
+      noteDocuments: '++id, projectId, order',
+      writingHistory: '++id, projectId, date, [projectId+date]',
+      trash: '++id, projectId, deletedAt',
     });
   }
 }

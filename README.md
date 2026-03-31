@@ -8,17 +8,22 @@ All data lives in your browser's IndexedDB — no server, no account, no sync. J
 
 ## Features
 
-- **Distraction-free editor** — TipTap-powered with markdown shortcuts, typewriter scroll, and zen/focus mode
-- **Project binder** — organize chapters and scenes with drag-and-drop, context menus, and a writing heat map
-- **Quick Idea Capture** — press `Ctrl+Space` anywhere to capture a thought without leaving your work
-- **Idea Constellation** — your ideas self-organize into a force-directed graph using TF-IDF similarity clustering. Similar ideas drift together naturally.
+- **Distraction-free editor** — TipTap-powered with a full formatting toolbar, markdown shortcuts, typewriter scroll, and zen/focus mode
+- **Find & Replace** — search and replace text within scenes (`Ctrl+F`)
+- **Project binder** — organize chapters and scenes with drag-and-drop reordering, context menus, and a writing heat map
+- **Word counts** — per-scene, per-chapter, and total manuscript word counts with optional daily goal tracking
+- **Quick Idea Capture** — press `Ctrl+Shift+I` anywhere to capture a thought without leaving your work
+- **Idea Constellation** — your ideas self-organize into a force-directed graph using TF-IDF similarity clustering. Edit ideas and link them to scenes.
 - **Vonnegut Timeline ("The Wallpaper")** — each character is a colored line through the story. Lines cross when characters meet, stop when they die, and pass through vertical event bands
-- **Character Relationship Web** — a node graph showing connections between characters (ally, rival, mentor, love, etc.)
+- **Character Relationship Web** — a node graph showing connections between characters (ally, rival, mentor, love, etc.) with inline character editing
 - **Snowflake Method Wizard** — optional guided project setup: one-sentence summary, paragraph expansion, character sheets, scene generation
 - **Scene Snapshots** — save named versions of any scene, browse, and restore
-- **Split Editor** — view two scenes side by side
+- **Scene Synopsis** — add brief summaries to each scene
+- **Split Editor** — view two scenes side by side (right-click a scene → "Open in Split View")
 - **Two themes** — Lain mode (light, inspired by the NAVI OS from Serial Experiments Lain) and Matrix mode (dark, phosphor green, digital rain, CRT effects)
-- **Export** — JSON full backup (re-importable) and Markdown/plain text manuscript export
+- **Export** — JSON full backup (re-importable), Markdown, plain text, and print/PDF export
+- **Settings** — customizable editor font, font size, themes, digital rain toggle, and keyboard shortcut reference
+- **Project management** — rename projects, search and filter on the dashboard, sort by recent/alphabetical/oldest
 
 ## Getting Started
 
@@ -47,15 +52,18 @@ npm run preview
 
 | Shortcut | Action |
 |---|---|
-| `Ctrl+Space` | Quick Idea Capture |
+| `Ctrl+Shift+I` | Quick Idea Capture |
 | `Ctrl+B` | Toggle sidebar |
 | `Ctrl+\` | Toggle split editor |
 | `Ctrl+Shift+T` | Typewriter scroll mode |
 | `Ctrl+Shift+Z` | Zen/focus mode |
+| `Ctrl+F` | Find & Replace |
+| `Ctrl+Z` | Undo |
+| `Ctrl+Y` | Redo |
 
 ## Tech Stack
 
-- React 18 + TypeScript
+- React 19 + TypeScript
 - Vite
 - Framer Motion
 - TipTap (ProseMirror)
