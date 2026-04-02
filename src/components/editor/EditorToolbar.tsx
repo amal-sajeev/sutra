@@ -1,5 +1,7 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { Editor } from '@tiptap/react';
+import { useProjectStore } from '../../stores/projectStore';
+import { createAsset } from '../../db/operations';
 import styles from './EditorToolbar.module.css';
 
 interface EditorToolbarProps {
@@ -9,21 +11,75 @@ interface EditorToolbarProps {
 export default function EditorToolbar({ editor }: EditorToolbarProps) {
   const [showLinkInput, setShowLinkInput] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
-  const imageInputRef = useRef<HTMLInputElement>(null);
+  const [showCommentInput, setShowCommentInput] = useState(false);
+  const [commentText, setCommentText] = useState('');
+  const [, setSelectionTick] = useState(0);
+  const commentRangeRef = useRef<{ from: number; to: number } | null>(null);
+  const createComment = useProjectStore((s) => s.createComment);
+  const activeScene = useProjectStore((s) => s.activeScene);
+  const activeProject = useProjectStore((s) => s.activeProject);
+  const updateProject = useProjectStore((s) => s.updateProject);
+  const [revisionMode, setRevisionMode] = useState(false);
+  const [revisionRound, setRevisionRound] = useState(1);
+
+  useEffect(() => {
+    if (!activeProject) return;
+    setRevisionMode(activeProject.settings?.revisionMode ?? false);
+    setRevisionRound(activeProject.settings?.revisionRound ?? 1);
+  }, [activeProject?.id]);
+
+  useEffect(() => {
+    if (!editor) return;
+    const sync = () => setSelectionTick((n) => n + 1);
+    editor.on('selectionUpdate', sync);
+    editor.on('transaction', sync);
+    return () => {
+      editor.off('selectionUpdate', sync);
+      editor.off('transaction', sync);
+    };
+  }, [editor]);
 
   if (!editor) return null;
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        editor.chain().focus().setImage({ src: reader.result }).run();
-      }
+  const selectionEmpty = editor.state.selection.empty;
+
+  const handleAddComment = async () => {
+    const range = commentRangeRef.current;
+    if (!range || !commentText.trim() || !activeScene?.id || !activeScene.projectId) return;
+    const { from, to } = range;
+    const selectedText = editor.state.doc.textBetween(from, to);
+    const newId = await createComment(activeScene.id, activeScene.projectId, selectedText, commentText.trim());
+    editor.chain().focus().setTextSelection({ from, to }).setComment(String(newId)).run();
+    commentRangeRef.current = null;
+    setCommentText('');
+    setShowCommentInput(false);
+  };
+
+  const handleInsertImage = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = () => {
+      void (async () => {
+        const file = input.files?.[0];
+        if (!file || !editor) return;
+        const activeProjectId = useProjectStore.getState().activeProjectId;
+        if (!activeProjectId) return;
+
+        const assetId = await createAsset({
+          projectId: activeProjectId,
+          filename: file.name,
+          mimeType: file.type,
+          data: file,
+          createdAt: Date.now(),
+        });
+
+        const blob = new Blob([file], { type: file.type });
+        const url = URL.createObjectURL(blob);
+        editor.chain().focus().setImage({ src: url, alt: file.name, title: `asset:${assetId}` }).run();
+      })();
     };
-    reader.readAsDataURL(file);
-    e.target.value = '';
+    input.click();
   };
 
   const handleSetLink = () => {
@@ -139,6 +195,14 @@ export default function EditorToolbar({ editor }: EditorToolbarProps) {
           </svg>
         </button>
         <button
+          className={`${styles.btn} ${editor.isActive('taskList') ? styles.active : ''}`}
+          onClick={() => editor.chain().focus().toggleTaskList().run()}
+          data-tooltip="Task List"
+          aria-label="Task list"
+        >
+          ☑
+        </button>
+        <button
           className={`${styles.btn} ${editor.isActive('blockquote') ? styles.active : ''}`}
           onClick={() => editor.chain().focus().toggleBlockquote().run()}
           data-tooltip="Blockquote"
@@ -184,8 +248,9 @@ export default function EditorToolbar({ editor }: EditorToolbarProps) {
           </svg>
         </button>
         <button
+          type="button"
           className={styles.btn}
-          onClick={() => imageInputRef.current?.click()}
+          onClick={handleInsertImage}
           data-tooltip="Insert image"
           aria-label="Insert image"
         >
@@ -195,13 +260,118 @@ export default function EditorToolbar({ editor }: EditorToolbarProps) {
             <polyline points="21 15 16 10 5 21" />
           </svg>
         </button>
-        <input
-          ref={imageInputRef}
-          type="file"
-          accept="image/*"
-          style={{ display: 'none' }}
-          onChange={handleImageUpload}
-        />
+      </div>
+
+      <div className={styles.separator} />
+      <button
+        type="button"
+        className={styles.btn}
+        onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
+        data-tooltip="Insert Table"
+        aria-label="Insert table"
+      >
+        ▦
+      </button>
+      {editor.isActive('table') && (
+        <>
+          <button
+            type="button"
+            className={styles.btn}
+            onClick={() => editor.chain().focus().addColumnAfter().run()}
+            data-tooltip="Add Column"
+            aria-label="Add column"
+          >
+            ‖+
+          </button>
+          <button
+            type="button"
+            className={styles.btn}
+            onClick={() => editor.chain().focus().addRowAfter().run()}
+            data-tooltip="Add Row"
+            aria-label="Add row"
+          >
+            ≡+
+          </button>
+          <button
+            type="button"
+            className={styles.btn}
+            onClick={() => editor.chain().focus().deleteColumn().run()}
+            data-tooltip="Delete Column"
+            aria-label="Delete column"
+          >
+            ‖×
+          </button>
+          <button
+            type="button"
+            className={styles.btn}
+            onClick={() => editor.chain().focus().deleteRow().run()}
+            data-tooltip="Delete Row"
+            aria-label="Delete row"
+          >
+            ≡×
+          </button>
+          <button
+            type="button"
+            className={styles.btn}
+            onClick={() => editor.chain().focus().deleteTable().run()}
+            data-tooltip="Delete Table"
+            aria-label="Delete table"
+          >
+            ▦×
+          </button>
+        </>
+      )}
+
+      <div className={styles.separator} />
+
+      <div className={`${styles.group} ${styles.commentWrap}`}>
+        <button
+          type="button"
+          className={styles.btn}
+          onClick={() => {
+            if (editor.state.selection.empty) return;
+            commentRangeRef.current = {
+              from: editor.state.selection.from,
+              to: editor.state.selection.to,
+            };
+            setShowCommentInput(true);
+          }}
+          data-tooltip="Add Comment"
+          aria-label="Add comment"
+          disabled={selectionEmpty}
+        >
+          💬
+        </button>
+        {showCommentInput && (
+          <div className={styles.commentPopover}>
+            <input
+              className={styles.commentInput}
+              placeholder="Add a comment..."
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && commentText.trim()) {
+                  e.preventDefault();
+                  void handleAddComment();
+                }
+                if (e.key === 'Escape') {
+                  setShowCommentInput(false);
+                  setCommentText('');
+                  commentRangeRef.current = null;
+                }
+              }}
+              autoFocus
+            />
+            <button
+              type="button"
+              className={styles.commentSubmit}
+              onClick={() => void handleAddComment()}
+              disabled={!commentText.trim()}
+            >
+              Add
+            </button>
+          </div>
+        )}
       </div>
 
       <div className={styles.separator} />
@@ -232,6 +402,47 @@ export default function EditorToolbar({ editor }: EditorToolbarProps) {
           </svg>
         </button>
       </div>
+
+      {activeProject?.id != null && (
+        <>
+          <div className={styles.separator} />
+          <button
+            type="button"
+            className={`${styles.btn} ${styles.revBtn} ${revisionMode ? styles.active : ''}`}
+            onClick={() => {
+              const next = !revisionMode;
+              setRevisionMode(next);
+              void updateProject(activeProject.id!, {
+                settings: { ...activeProject.settings, revisionMode: next, revisionRound },
+              });
+            }}
+            data-tooltip={revisionMode ? 'Exit Revision Mode' : 'Enter Revision Mode'}
+            aria-label={revisionMode ? 'Exit revision mode' : 'Enter revision mode'}
+          >
+            Rev
+          </button>
+          {revisionMode && (
+            <select
+              className={styles.roundSelect}
+              value={revisionRound}
+              onChange={(e) => {
+                const r = Number(e.target.value);
+                setRevisionRound(r);
+                void updateProject(activeProject.id!, {
+                  settings: { ...activeProject.settings, revisionMode, revisionRound: r },
+                });
+              }}
+              aria-label="Revision round"
+            >
+              {[1, 2, 3, 4, 5].map((r) => (
+                <option key={r} value={r}>
+                  Round {r}
+                </option>
+              ))}
+            </select>
+          )}
+        </>
+      )}
 
       {showLinkInput && (
         <div className={styles.linkPopover}>

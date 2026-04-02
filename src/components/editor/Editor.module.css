@@ -37,8 +37,10 @@
 .controlBtn {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 5px;
-  padding: 4px 10px;
+  padding: 6px;
+  min-width: 30px;
   font-size: 0.9rem;
   font-weight: 600;
   color: var(--text-tertiary);
@@ -186,6 +188,40 @@
   margin: 0 auto;
 }
 
+.zen .editorContainer {
+  max-width: 650px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+.zen .sceneHeader {
+  opacity: 0.3;
+  transition: opacity 0.3s ease;
+}
+
+.zen .sceneHeader:hover {
+  opacity: 1;
+}
+
+.zen .footer {
+  opacity: 0.3;
+  transition: opacity 0.3s ease;
+}
+
+.zen .footer:hover {
+  opacity: 1;
+}
+
+/* Focus mode: dim blocks except the paragraph containing the caret */
+.focusMode :global(.ProseMirror) > * {
+  opacity: 0.25;
+  transition: opacity 0.15s ease;
+}
+
+.focusMode :global(.ProseMirror) > :global(.is-focused-paragraph) {
+  opacity: 1;
+}
+
 /* Footer */
 .footer {
   display: flex;
@@ -194,6 +230,11 @@
   padding: 6px 24px;
   border-top: 1px solid var(--divider);
   flex-shrink: 0;
+}
+
+.sessionTimer {
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
 }
 
 .wordCount,

@@ -144,7 +144,25 @@ export default function SnapshotBrowser() {
             >
               <div className={styles.itemHeader}>
                 <span className={styles.itemName}>{snapshot.name}</span>
-                <span className={styles.itemDate}>{new Date(snapshot.createdAt).toLocaleDateString()}</span>
+                <div className={styles.itemInlineActions}>
+                  <button
+                    type="button"
+                    className={styles.inlineBtn}
+                    onClick={e => { e.stopPropagation(); setConfirmRestore({ content: snapshot.content, name: snapshot.name }); }}
+                    title="Restore this snapshot"
+                  >
+                    ↺
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.inlineBtn}
+                    onClick={e => { e.stopPropagation(); deleteSnapshot(snapshot.id!); }}
+                    title="Delete snapshot"
+                  >
+                    ×
+                  </button>
+                  <span className={styles.itemDate}>{new Date(snapshot.createdAt).toLocaleDateString()}</span>
+                </div>
               </div>
               {snapshot.note && <p className={styles.itemNote}>{snapshot.note}</p>}
 

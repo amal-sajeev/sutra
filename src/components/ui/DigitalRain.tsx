@@ -31,7 +31,6 @@ export default function DigitalRain() {
       ctx!.fillStyle = 'rgba(0, 0, 0, 0.05)';
       ctx!.fillRect(0, 0, canvas!.width, canvas!.height);
 
-      ctx!.fillStyle = '#00ff4120';
       ctx!.font = `${fontSize}px monospace`;
 
       for (let i = 0; i < drops.length; i++) {
@@ -39,7 +38,7 @@ export default function DigitalRain() {
         const x = i * fontSize;
         const y = drops[i] * fontSize;
 
-        ctx!.fillStyle = `rgba(0, 255, 65, ${Math.random() * 0.15 + 0.03})`;
+        ctx!.fillStyle = `rgba(0, 255, 65, ${Math.random() * 0.06 + 0.02})`;
         ctx!.fillText(char, x, y);
 
         if (y > canvas!.height && Math.random() > 0.975) {
@@ -67,7 +66,7 @@ export default function DigitalRain() {
         inset: 0,
         zIndex: 0,
         pointerEvents: 'none',
-        opacity: 0.6,
+        opacity: 0.15,
       }}
     />
   );

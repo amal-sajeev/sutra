@@ -41,6 +41,7 @@ export default function CharacterWeb() {
   const updateCharacter = useProjectStore((s) => s.updateCharacter);
   const deleteCharacter = useProjectStore((s) => s.deleteCharacter);
   const createRelationship = useProjectStore((s) => s.createRelationship);
+  const deleteRelationship = useProjectStore((s) => s.deleteRelationship);
   const activeProjectId = useProjectStore((s) => s.activeProjectId);
 
   const [nodes, setNodes] = useState<CharNode[]>([]);
@@ -105,9 +106,9 @@ export default function CharacterWeb() {
 
     const simulation = forceSimulation(charNodes)
       .force('link', forceLink<CharNode, CharLink>(charLinks).id((d) => d.id).distance(100))
-      .force('charge', forceManyBody().strength(-200))
+      .force('charge', forceManyBody().strength(-350))
       .force('center', forceCenter(0, 0))
-      .force('collide', forceCollide(35))
+      .force('collide', forceCollide(50))
       .alpha(0.8);
 
     simulation.on('tick', () => {
@@ -150,7 +151,7 @@ export default function CharacterWeb() {
             + Character
           </button>
           <button className={styles.actionBtn} onClick={() => setShowAddRel(!showAddRel)}>
-            + Relation
+            + Link
           </button>
         </div>
       </div>
@@ -227,7 +228,21 @@ export default function CharacterWeb() {
                   fontWeight={700}
                   opacity={0.9}
                 >
-                  {link.relationship.label || link.relationship.type}
+                  {(link.relationship.label || link.relationship.type).slice(0, 15)}
+                </text>
+                <text
+                  x={midX + px(TARGET_FONT_REL) * 3}
+                  y={midY - px(6)}
+                  textAnchor="middle"
+                  fill="var(--text-tertiary)"
+                  fontSize={px(TARGET_FONT_SM)}
+                  opacity={0.5}
+                  style={{ cursor: 'pointer' }}
+                  onClick={(e) => { e.stopPropagation(); deleteRelationship(link.relationship.id!); }}
+                  onMouseEnter={(e) => (e.target as SVGElement).setAttribute('opacity', '1')}
+                  onMouseLeave={(e) => (e.target as SVGElement).setAttribute('opacity', '0.5')}
+                >
+                  ×
                 </text>
               </g>
             );
@@ -306,6 +321,13 @@ export default function CharacterWeb() {
                         goal: selectedChar.goal || '',
                         conflict: selectedChar.conflict || '',
                         epiphany: selectedChar.epiphany || '',
+                        age: selectedChar.age || '',
+                        gender: selectedChar.gender || '',
+                        appearance: selectedChar.appearance || '',
+                        backstory: selectedChar.backstory || '',
+                        arc: selectedChar.arc || '',
+                        notes: selectedChar.notes || '',
+                        tags: selectedChar.tags,
                         color: selectedChar.color,
                       });
                       setEditing(true);
@@ -337,6 +359,28 @@ export default function CharacterWeb() {
                 <input className={styles.editInput} value={editFields.conflict || ''} onChange={(e) => setEditFields({ ...editFields, conflict: e.target.value })} />
                 <label className={styles.editLabel}>Epiphany</label>
                 <input className={styles.editInput} value={editFields.epiphany || ''} onChange={(e) => setEditFields({ ...editFields, epiphany: e.target.value })} />
+                <label className={styles.editLabel}>Age</label>
+                <input className={styles.editInput} value={editFields.age || ''} onChange={(e) => setEditFields({ ...editFields, age: e.target.value })} placeholder="Age or age range" />
+                <label className={styles.editLabel}>Gender</label>
+                <input className={styles.editInput} value={editFields.gender || ''} onChange={(e) => setEditFields({ ...editFields, gender: e.target.value })} />
+                <label className={styles.editLabel}>Appearance</label>
+                <textarea className={styles.editTextarea} value={editFields.appearance || ''} onChange={(e) => setEditFields({ ...editFields, appearance: e.target.value })} placeholder="Physical appearance..." rows={2} />
+                <label className={styles.editLabel}>Backstory</label>
+                <textarea className={styles.editTextarea} value={editFields.backstory || ''} onChange={(e) => setEditFields({ ...editFields, backstory: e.target.value })} placeholder="Character history..." rows={3} />
+                <label className={styles.editLabel}>Character Arc</label>
+                <textarea className={styles.editTextarea} value={editFields.arc || ''} onChange={(e) => setEditFields({ ...editFields, arc: e.target.value })} placeholder="How they change..." rows={2} />
+                <label className={styles.editLabel}>Notes</label>
+                <textarea className={styles.editTextarea} value={editFields.notes || ''} onChange={(e) => setEditFields({ ...editFields, notes: e.target.value })} placeholder="Private notes..." rows={2} />
+                <label className={styles.editLabel}>Tags</label>
+                <input
+                  className={styles.editInput}
+                  value={(editFields.tags || []).join(', ')}
+                  onChange={(e) => {
+                    const arr = e.target.value.split(',').map((t) => t.trim()).filter(Boolean);
+                    setEditFields({ ...editFields, tags: arr.length > 0 ? arr : undefined });
+                  }}
+                  placeholder="tag1, tag2..."
+                />
               </div>
             ) : (
               <>
@@ -346,6 +390,15 @@ export default function CharacterWeb() {
                 {selectedChar.goal && <p className={styles.cardField}><strong>Goal:</strong> {selectedChar.goal}</p>}
                 {selectedChar.conflict && <p className={styles.cardField}><strong>Conflict:</strong> {selectedChar.conflict}</p>}
                 {selectedChar.epiphany && <p className={styles.cardField}><strong>Epiphany:</strong> {selectedChar.epiphany}</p>}
+                {selectedChar.age && <p className={styles.cardField}><strong>Age:</strong> {selectedChar.age}</p>}
+                {selectedChar.gender && <p className={styles.cardField}><strong>Gender:</strong> {selectedChar.gender}</p>}
+                {selectedChar.appearance && <p className={styles.cardField}><strong>Appearance:</strong> {selectedChar.appearance}</p>}
+                {selectedChar.backstory && <p className={styles.cardField}><strong>Backstory:</strong> {selectedChar.backstory}</p>}
+                {selectedChar.arc && <p className={styles.cardField}><strong>Arc:</strong> {selectedChar.arc}</p>}
+                {selectedChar.notes && <p className={styles.cardField}><strong>Notes:</strong> {selectedChar.notes}</p>}
+                {(selectedChar.tags && selectedChar.tags.length > 0) && (
+                  <p className={styles.cardField}><strong>Tags:</strong> {selectedChar.tags.join(', ')}</p>
+                )}
               </>
             )}
             <button

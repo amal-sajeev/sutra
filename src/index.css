@@ -3,6 +3,7 @@
    ============================== */
 @import './themes/lain.css';
 @import './themes/matrix.css';
+@import './themes/light.css';
 @import './themes/animations.css';
 
 *,
@@ -100,6 +101,28 @@ textarea {
   color: var(--text-primary);
 }
 
+.document-link {
+  background: var(--accent-glow);
+  color: var(--accent-primary);
+  padding: 1px 4px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 0.9em;
+  font-weight: 500;
+}
+
+.document-link:hover {
+  text-decoration: underline;
+}
+
+/* TipTap inline comment marks (rendered inside ProseMirror) */
+.comment-highlight {
+  background: rgba(212, 167, 69, 0.25);
+  border-bottom: 2px solid rgba(212, 167, 69, 0.6);
+  cursor: pointer;
+  padding: 1px 0;
+}
+
 /* ---- Custom Tooltips ---- */
 [data-tooltip] {
   position: relative;
@@ -190,4 +213,75 @@ textarea {
   html {
     font-size: 15px;
   }
+}
+
+/* TipTap / ProseMirror — tables */
+.ProseMirror table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+}
+
+.ProseMirror th,
+.ProseMirror td {
+  border: 1px solid var(--divider);
+  padding: 6px 10px;
+  min-width: 60px;
+  vertical-align: top;
+}
+
+.ProseMirror th {
+  background: var(--bg-tertiary);
+  font-weight: 600;
+}
+
+.ProseMirror .selectedCell {
+  background: var(--accent-glow);
+}
+
+.ProseMirror .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  cursor: col-resize;
+  background: var(--accent-primary);
+  opacity: 0;
+}
+
+.ProseMirror .column-resize-handle:hover {
+  opacity: 1;
+}
+
+/* TipTap / ProseMirror — task lists */
+.ProseMirror ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0;
+}
+
+.ProseMirror ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 2px 0;
+}
+
+.ProseMirror ul[data-type="taskList"] li > label {
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+
+.ProseMirror ul[data-type="taskList"] li > label input[type="checkbox"] {
+  accent-color: var(--accent-primary);
+  cursor: pointer;
+}
+
+.ProseMirror ul[data-type="taskList"] li > div {
+  flex: 1;
+}
+
+.ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div {
+  text-decoration: line-through;
+  opacity: 0.6;
 }

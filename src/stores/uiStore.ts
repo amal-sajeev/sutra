@@ -41,7 +41,10 @@ interface UIState {
   setWordCountGoal: (goal: number) => void;
 }
 
-const savedTheme = (localStorage.getItem('sutra-theme') as ThemeMode) || 'lain';
+const THEME_ORDER: ThemeMode[] = ['lain', 'matrix', 'light'];
+const rawSaved = localStorage.getItem('sutra-theme') as ThemeMode | null;
+const savedTheme: ThemeMode =
+  rawSaved && THEME_ORDER.includes(rawSaved) ? rawSaved : 'lain';
 
 export const useUIStore = create<UIState>((set) => ({
   theme: savedTheme,
@@ -68,7 +71,9 @@ export const useUIStore = create<UIState>((set) => ({
   },
   toggleTheme: () => {
     set((state) => {
-      const newTheme = state.theme === 'lain' ? 'matrix' : 'lain';
+      const themes: ThemeMode[] = ['lain', 'matrix', 'light'];
+      const idx = themes.indexOf(state.theme);
+      const newTheme = themes[(idx + 1) % themes.length];
       localStorage.setItem('sutra-theme', newTheme);
       document.documentElement.setAttribute('data-theme', newTheme);
       return { theme: newTheme };
@@ -85,7 +90,7 @@ export const useUIStore = create<UIState>((set) => ({
   setTypewriterMode: (on) => set({ typewriterMode: on }),
   setSplitEditor: (on) => set({ splitEditor: on }),
   setDigitalRain: (on) => set({ digitalRain: on }),
-  setZenMode: (on) => set({ zenMode: on, focusMode: on }),
+  setZenMode: (on) => set({ zenMode: on }),
   setCenterView: (view) => set({ centerView: view }),
   setInspectorOpen: (open) => set({ inspectorOpen: open }),
   toggleInspector: () => set((s) => ({ inspectorOpen: !s.inspectorOpen })),

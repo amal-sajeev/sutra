@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
+import type { Editor as TiptapEditor } from '@tiptap/core';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -6,13 +7,46 @@ import CharacterCount from '@tiptap/extension-character-count';
 import Typography from '@tiptap/extension-typography';
 import Link from '@tiptap/extension-link';
 import Image from '@tiptap/extension-image';
+import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
+import CommentMark from '../../extensions/CommentMark';
+import RevisionMark from '../../extensions/RevisionMark';
+import DocumentLink from '../../extensions/DocumentLink';
 import { useProjectStore } from '../../stores/projectStore';
 import { useUIStore } from '../../stores/uiStore';
 import { recordWritingHistory } from '../../db/operations';
+import { prepareImagesForStorage, hydrateImagesFromStorage } from '../../utils/imageAssets';
 import EditorToolbar from './EditorToolbar';
 import FindReplace from './FindReplace';
 import type { Scene } from '../../types';
 import styles from './Editor.module.css';
+
+function applyTypewriterScroll(editor: TiptapEditor, container: HTMLDivElement | null) {
+  if (!container) return;
+  const { view } = editor;
+  const coords = view.coordsAtPos(view.state.selection.from);
+  const containerRect = container.getBoundingClientRect();
+  const centerY = containerRect.top + containerRect.height / 2;
+  const offset = coords.top - centerY;
+  container.scrollBy({ top: offset, behavior: 'smooth' });
+}
+
+function syncFocusParagraph(editor: TiptapEditor) {
+  const el = editor.view.dom;
+  el.querySelectorAll('.is-focused-paragraph').forEach((n) => n.classList.remove('is-focused-paragraph'));
+  if (!useUIStore.getState().focusMode) return;
+  const { from } = editor.state.selection;
+  const resolved = editor.state.doc.resolve(from);
+  for (let d = resolved.depth; d >= 1; d--) {
+    const nodePos = resolved.before(d);
+    const domNode = editor.view.nodeDOM(nodePos);
+    if (domNode instanceof HTMLElement) {
+      domNode.classList.add('is-focused-paragraph');
+      break;
+    }
+  }
+}
 
 interface EditorProps {
   scene: Scene;
@@ -20,22 +54,36 @@ interface EditorProps {
 
 export default function Editor({ scene }: EditorProps) {
   const updateScene = useProjectStore((s) => s.updateScene);
+  const setActiveScene = useProjectStore((s) => s.setActiveScene);
   const characters = useProjectStore((s) => s.characters);
   const typewriterMode = useUIStore((s) => s.typewriterMode);
+  const focusMode = useUIStore((s) => s.focusMode);
   const zenMode = useUIStore((s) => s.zenMode);
   const setTypewriterMode = useUIStore((s) => s.setTypewriterMode);
+  const setFocusMode = useUIStore((s) => s.setFocusMode);
   const setZenMode = useUIStore((s) => s.setZenMode);
   const editorFontFamily = useUIStore((s) => s.editorFontFamily);
   const editorFontSize = useUIStore((s) => s.editorFontSize);
   const wordCountGoal = useUIStore((s) => s.wordCountGoal);
+  const activeProject = useProjectStore((s) => s.activeProject);
+  const revisionMode = activeProject?.settings?.revisionMode ?? false;
+  const revisionRound = activeProject?.settings?.revisionRound ?? 1;
   const [synopsisOpen, setSynopsisOpen] = useState(false);
   const [synopsisText, setSynopsisText] = useState(scene.synopsis || '');
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [findReplaceOpen, setFindReplaceOpen] = useState(false);
+  const [sessionStart] = useState(() => Date.now());
+  const [elapsed, setElapsed] = useState(0);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveIndicatorRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const lastWordCountRef = useRef<number>(0);
+  const imageBlobUrlsRef = useRef<string[]>([]);
+
+  const revokeImageBlobUrls = useCallback(() => {
+    imageBlobUrlsRef.current.forEach((u) => URL.revokeObjectURL(u));
+    imageBlobUrlsRef.current = [];
+  }, []);
 
   const editor = useEditor({
     extensions: [
@@ -55,6 +103,15 @@ export default function Editor({ scene }: EditorProps) {
         inline: false,
         allowBase64: true,
       }),
+      Table.configure({ resizable: true }),
+      TableRow,
+      TableCell,
+      TableHeader,
+      TaskList,
+      TaskItem.configure({ nested: true }),
+      CommentMark,
+      RevisionMark,
+      DocumentLink,
     ],
     content: scene.content ? (() => {
       try { return JSON.parse(scene.content); } catch { return scene.content; }
@@ -63,7 +120,7 @@ export default function Editor({ scene }: EditorProps) {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       setSaveState('saving');
       saveTimerRef.current = setTimeout(() => {
-        const json = JSON.stringify(editor.getJSON());
+        const json = JSON.stringify(prepareImagesForStorage(editor.getJSON()));
         updateScene(scene.id!, { content: json });
 
         const currentWords = editor.storage.characterCount?.words() || 0;
@@ -78,15 +135,14 @@ export default function Editor({ scene }: EditorProps) {
         saveIndicatorRef.current = setTimeout(() => setSaveState('idle'), 2000);
       }, 500);
 
-      // Typewriter mode: scroll current line to center
-      if (typewriterMode && editorContainerRef.current) {
-        const { view } = editor;
-        const coords = view.coordsAtPos(view.state.selection.from);
-        const container = editorContainerRef.current;
-        const containerRect = container.getBoundingClientRect();
-        const centerY = containerRect.top + containerRect.height / 2;
-        const offset = coords.top - centerY;
-        container.scrollBy({ top: offset, behavior: 'smooth' });
+      if (useUIStore.getState().typewriterMode) {
+        applyTypewriterScroll(editor, editorContainerRef.current);
+      }
+    },
+    onSelectionUpdate: ({ editor }) => {
+      syncFocusParagraph(editor);
+      if (useUIStore.getState().typewriterMode) {
+        applyTypewriterScroll(editor, editorContainerRef.current);
       }
     },
     editorProps: {
@@ -98,23 +154,54 @@ export default function Editor({ scene }: EditorProps) {
     },
   });
 
-  // Update content when scene changes
+  // Update content when scene changes (hydrate sutra-asset: image refs from IndexedDB)
   useEffect(() => {
-    if (editor && scene.content) {
-      const currentJson = JSON.stringify(editor.getJSON());
-      if (currentJson !== scene.content) {
-        try {
-          editor.commands.setContent(JSON.parse(scene.content));
-        } catch {
-          editor.commands.setContent(scene.content);
-        }
+    if (!editor) return;
+    let cancelled = false;
+
+    const run = async () => {
+      if (!scene.content) {
+        revokeImageBlobUrls();
+        editor.commands.setContent('');
+        lastWordCountRef.current = 0;
+        return;
       }
+
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(scene.content);
+      } catch {
+        editor.commands.setContent(scene.content);
+        lastWordCountRef.current = editor.storage.characterCount?.words() || 0;
+        return;
+      }
+
+      const normalizedCurrent = JSON.stringify(prepareImagesForStorage(editor.getJSON()));
+      const needsAssetHydrate = scene.content.includes('sutra-asset:');
+      if (normalizedCurrent === scene.content && !needsAssetHydrate) {
+        lastWordCountRef.current = editor.storage.characterCount?.words() || 0;
+        return;
+      }
+
+      revokeImageBlobUrls();
+      const urls: string[] = [];
+      const doc = await hydrateImagesFromStorage(parsed, urls);
+      if (cancelled) {
+        urls.forEach((u) => URL.revokeObjectURL(u));
+        return;
+      }
+      imageBlobUrlsRef.current = urls;
+      editor.commands.setContent(doc as Record<string, unknown>);
       lastWordCountRef.current = editor.storage.characterCount?.words() || 0;
-    } else if (editor && !scene.content) {
-      editor.commands.setContent('');
-      lastWordCountRef.current = 0;
-    }
-  }, [scene.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    };
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [scene.id, editor, revokeImageBlobUrls]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => () => revokeImageBlobUrls(), [revokeImageBlobUrls]);
 
   const prevSceneIdRef = useRef(scene.id);
   if (prevSceneIdRef.current !== scene.id) {
@@ -159,6 +246,56 @@ export default function Editor({ scene }: EditorProps) {
     highlightCharacters();
   }, [highlightCharacters]);
 
+  useEffect(() => {
+    const timer = setInterval(() => setElapsed(Date.now() - sessionStart), 60000);
+    return () => clearInterval(timer);
+  }, [sessionStart]);
+
+  useEffect(() => {
+    if (!editor) return;
+    const handler = (e: MouseEvent) => {
+      const target = (e.target as HTMLElement).closest('.document-link');
+      if (!target) return;
+      const sceneId = target.getAttribute('data-document-link');
+      if (sceneId) {
+        void setActiveScene(Number(sceneId));
+        useUIStore.getState().setCenterView('editor');
+      }
+    };
+    editor.view.dom.addEventListener('click', handler);
+    return () => editor.view.dom.removeEventListener('click', handler);
+  }, [editor, setActiveScene]);
+
+  useEffect(() => {
+    if (!editor) return;
+    if (!focusMode) {
+      editor.view.dom.querySelectorAll('.is-focused-paragraph').forEach((n) =>
+        n.classList.remove('is-focused-paragraph'),
+      );
+    } else {
+      syncFocusParagraph(editor);
+    }
+  }, [focusMode, editor]);
+
+  // Revision mode: keep ProseMirror stored marks so newly typed text gets the revision mark.
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    const syncStoredRevisionMark = () => {
+      if (editor.isDestroyed) return;
+      if (!editor.state.selection.empty) return;
+      if (revisionMode) {
+        editor.commands.setRevision(revisionRound);
+      } else {
+        editor.commands.unsetRevision();
+      }
+    };
+    syncStoredRevisionMark();
+    editor.on('selectionUpdate', syncStoredRevisionMark);
+    return () => {
+      editor.off('selectionUpdate', syncStoredRevisionMark);
+    };
+  }, [editor, revisionMode, revisionRound]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -188,9 +325,10 @@ export default function Editor({ scene }: EditorProps) {
 
   const wordCount = editor?.storage.characterCount?.words() ?? 0;
   const charCount = editor?.storage.characterCount?.characters() ?? 0;
+  const elapsedMin = Math.floor(elapsed / 60000);
 
   return (
-    <div className={`${styles.editorWrapper} ${zenMode ? styles.zen : ''}`}>
+    <div className={`${styles.editorWrapper} ${zenMode ? styles.zen : ''} ${focusMode ? styles.focusMode : ''}`}>
       <div className={styles.sceneHeader}>
         <span className={styles.sceneTitle}>{scene.title}</span>
         <div className={styles.controls}>
@@ -204,18 +342,16 @@ export default function Editor({ scene }: EditorProps) {
               <path d="M12 8v8M9 20h6" />
               <path d="M6 12h12" opacity="0.4" />
             </svg>
-            <span>Typewriter</span>
           </button>
           <button
-            className={`${styles.controlBtn} ${zenMode ? styles.controlActive : ''}`}
-            onClick={() => setZenMode(!zenMode)}
-            data-tooltip="Hides everything except the editor (Ctrl+Shift+Z)"
+            className={`${styles.controlBtn} ${focusMode ? styles.controlActive : ''}`}
+            onClick={() => setFocusMode(!focusMode)}
+            data-tooltip="Dims all text except the current paragraph"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <circle cx="12" cy="12" r="10" />
               <circle cx="12" cy="12" r="3" />
             </svg>
-            <span>Focus</span>
           </button>
         </div>
       </div>
@@ -252,6 +388,7 @@ export default function Editor({ scene }: EditorProps) {
             {saveState === 'saving' ? '● Saving...' : '✓ Saved'}
           </span>
         )}
+        <span className={styles.sessionTimer}>{elapsedMin > 0 ? `${elapsedMin}m` : '<1m'}</span>
         <span className={styles.wordCount}>
           {wordCount} words
           {wordCountGoal > 0 && (

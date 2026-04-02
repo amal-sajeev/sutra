@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Project, Chapter, Scene, Character, Relationship, Idea, TimelineEvent, CharacterAppearance, Snapshot, NoteDocument, TrashItem } from '../types';
+import type { Project, Chapter, Scene, Character, Relationship, Idea, TimelineEvent, CharacterAppearance, Snapshot, NoteDocument, TrashItem, Comment } from '../types';
 import * as ops from '../db/operations';
 
 interface ProjectState {
@@ -17,6 +17,7 @@ interface ProjectState {
   snapshots: Snapshot[];
   noteDocuments: NoteDocument[];
   trashItems: TrashItem[];
+  comments: Comment[];
   activeSceneId: number | null;
   activeScene: Scene | null;
   activeNoteId: number | null;
@@ -34,12 +35,12 @@ interface ProjectState {
   deleteProject: (id: number) => Promise<void>;
 
   /* Chapter CRUD */
-  createChapter: (title: string) => Promise<number>;
+  createChapter: (title?: string, order?: number, sectionType?: string) => Promise<number>;
   updateChapter: (id: number, changes: Partial<Chapter>) => Promise<void>;
   deleteChapter: (id: number) => Promise<void>;
 
   /* Scene CRUD */
-  createScene: (chapterId: number, title: string) => Promise<number>;
+  createScene: (chapterId: number, title: string, initialContent?: string) => Promise<number>;
   setActiveScene: (id: number | null) => Promise<void>;
   setSplitScene: (id: number | null) => void;
   updateScene: (id: number, changes: Partial<Scene>) => Promise<void>;
@@ -92,6 +93,12 @@ interface ProjectState {
   restoreTrashItem: (id: number) => Promise<void>;
   deleteTrashItem: (id: number) => Promise<void>;
   emptyTrash: () => Promise<void>;
+
+  /* Comments */
+  loadComments: (sceneId: number) => Promise<void>;
+  createComment: (sceneId: number, projectId: number, selectedText: string, body: string) => Promise<number>;
+  resolveComment: (id: number) => Promise<void>;
+  deleteComment: (id: number) => Promise<void>;
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
@@ -108,6 +115,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   snapshots: [],
   noteDocuments: [],
   trashItems: [],
+  comments: [],
   activeSceneId: null,
   activeScene: null,
   activeNoteId: null,
@@ -133,15 +141,6 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const noteDocuments = await ops.getNoteDocuments(id);
     const trashItems = await ops.getTrashItems(id);
 
-    // Apply per-project settings if they exist
-    const ps = project.settings;
-    if (ps) {
-      const uiMod = await import('./uiStore');
-      const ui = uiMod.useUIStore.getState();
-      if (ps.theme) ui.setTheme(ps.theme);
-      if (ps.editorFont) ui.setEditorFontFamily(ps.editorFont);
-      if (ps.editorSize) ui.setEditorFontSize(ps.editorSize);
-    }
     set({
       activeProjectId: id,
       activeProject: project,
@@ -160,7 +159,30 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       activeNote: null,
       splitSceneId: null,
       snapshots: [],
+      comments: [],
     });
+
+    // Apply per-project UI after activeProject is set (avoids sync writing to wrong project)
+    const ps = project.settings;
+    if (ps) {
+      const uiMod = await import('./uiStore');
+      const ui = uiMod.useUIStore.getState();
+      if (ps.theme) ui.setTheme(ps.theme);
+      if (ps.editorFont) ui.setEditorFontFamily(ps.editorFont);
+      if (ps.editorSize) ui.setEditorFontSize(ps.editorSize);
+      // One setState so workspace subscriber persists a single merged settings write
+      const uiPatch: Partial<{
+        typewriterMode: boolean;
+        focusMode: boolean;
+        digitalRain: boolean;
+      }> = {};
+      if (ps.typewriterMode !== undefined) uiPatch.typewriterMode = ps.typewriterMode;
+      if (ps.focusMode !== undefined) uiPatch.focusMode = ps.focusMode;
+      if (ps.digitalRain !== undefined) uiPatch.digitalRain = ps.digitalRain;
+      if (Object.keys(uiPatch).length > 0) {
+        uiMod.useUIStore.setState(uiPatch);
+      }
+    }
   },
 
   unloadProject: () => {
@@ -182,6 +204,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       activeNote: null,
       splitSceneId: null,
       snapshots: [],
+      comments: [],
     });
   },
 
@@ -206,10 +229,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 
   /* ---- Chapter CRUD ---- */
-  createChapter: async (title) => {
+  createChapter: async (title = 'New Chapter', order?: number, sectionType?: string) => {
     const pid = get().activeProjectId;
     if (!pid) throw new Error('No active project');
-    const id = await ops.createChapter(pid, title);
+    const id = await ops.createChapter(pid, title, order, sectionType);
     const chapters = await ops.getChapters(pid);
     set({ chapters });
     return id;
@@ -231,10 +254,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 
   /* ---- Scene CRUD ---- */
-  createScene: async (chapterId, title) => {
+  createScene: async (chapterId, title, initialContent?: string) => {
     const pid = get().activeProjectId;
     if (!pid) throw new Error('No active project');
-    const id = await ops.createScene(chapterId, pid, title);
+    const id = await ops.createScene(chapterId, pid, title, initialContent);
     const scenes = await ops.getAllProjectScenes(pid);
     set({ scenes });
     return id;
@@ -242,11 +265,18 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
   setActiveScene: async (id) => {
     if (id === null) {
-      set({ activeSceneId: null, activeScene: null, snapshots: [] });
+      set({ activeSceneId: null, activeScene: null, snapshots: [], comments: [] });
       return;
     }
     const scene = await ops.getScene(id);
-    set({ activeSceneId: id, activeScene: scene || null });
+    const comments = await ops.getComments(id);
+    set({
+      activeSceneId: id,
+      activeScene: scene || null,
+      comments,
+      activeNoteId: null,
+      activeNote: null,
+    });
   },
 
   setSplitScene: (id) => set({ splitSceneId: id }),
@@ -284,7 +314,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     await ops.deleteScene(id);
     const pid = get().activeProjectId!;
     const scenes = await ops.getAllProjectScenes(pid);
-    if (get().activeSceneId === id) set({ activeSceneId: null, activeScene: null, snapshots: [] });
+    if (get().activeSceneId === id) set({ activeSceneId: null, activeScene: null, snapshots: [], comments: [] });
     if (get().splitSceneId === id) set({ splitSceneId: null });
     set({ scenes });
   },
@@ -437,7 +467,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       return;
     }
     const note = await ops.getNoteDocument(id);
-    set({ activeNoteId: id, activeNote: note || null, activeSceneId: null, activeScene: null });
+    set({ activeNoteId: id, activeNote: note || null, activeSceneId: null, activeScene: null, snapshots: [], comments: [] });
   },
 
   updateNote: async (id, changes) => {
@@ -471,7 +501,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     await ops.deleteScene(id);
     const scenes = await ops.getAllProjectScenes(pid);
     const trashItems = await ops.getTrashItems(pid);
-    if (get().activeSceneId === id) set({ activeSceneId: null, activeScene: null, snapshots: [] });
+    if (get().activeSceneId === id) set({ activeSceneId: null, activeScene: null, snapshots: [], comments: [] });
     if (get().splitSceneId === id) set({ splitSceneId: null });
     set({ scenes, trashItems });
   },
@@ -518,7 +548,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         await ops.updateScene(lastScene.id, { content: rest.content, synopsis: rest.synopsis, status: rest.status });
       }
     } else if (item.itemType === 'chapter') {
-      const newChId = await ops.createChapter(pid, data.chapter.title);
+      const newChId = await ops.createChapter(pid, data.chapter.title, undefined, data.chapter.sectionType);
       for (const sc of data.scenes || []) {
         const newScId = await ops.createScene(newChId, pid, sc.title);
         await ops.updateScene(newScId, { content: sc.content, synopsis: sc.synopsis, status: sc.status });
@@ -547,5 +577,45 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const pid = get().activeProjectId!;
     await ops.emptyTrash(pid);
     set({ trashItems: [] });
+  },
+
+  /* ---- Comments ---- */
+  loadComments: async (sceneId) => {
+    const comments = await ops.getComments(sceneId);
+    set({ comments });
+  },
+
+  createComment: async (sceneId, projectId, selectedText, body) => {
+    const id = await ops.createComment({
+      sceneId,
+      projectId,
+      selectedText,
+      body,
+      createdAt: Date.now(),
+      resolved: false,
+    });
+    if (get().activeSceneId === sceneId) {
+      const comments = await ops.getComments(sceneId);
+      set({ comments });
+    }
+    return id;
+  },
+
+  resolveComment: async (id) => {
+    await ops.updateComment(id, { resolved: true });
+    const sceneId = get().activeSceneId;
+    if (sceneId) {
+      const comments = await ops.getComments(sceneId);
+      set({ comments });
+    }
+  },
+
+  deleteComment: async (id) => {
+    await ops.deleteComment(id);
+    const sceneId = get().activeSceneId;
+    if (sceneId) {
+      const comments = await ops.getComments(sceneId);
+      set({ comments });
+    }
   },
 }));

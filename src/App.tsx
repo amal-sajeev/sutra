@@ -7,6 +7,10 @@ import ProjectWorkspace from './components/layout/ProjectWorkspace';
 import QuickCapture from './components/capture/QuickCapture';
 import DigitalRain from './components/ui/DigitalRain';
 import ToastContainer from './components/ui/ToastContainer';
+import BackupWarning from './components/ui/BackupWarning';
+import CommandPalette from './components/ui/CommandPalette';
+import ShortcutSheet from './components/ui/ShortcutSheet';
+import DuplicateTabWarning from './components/ui/DuplicateTabWarning';
 
 export default function App() {
   const theme = useUIStore((s) => s.theme);
@@ -29,6 +33,10 @@ export default function App() {
       {theme === 'matrix' && digitalRain && <DigitalRain />}
 
       <main id="main-content">
+      <DuplicateTabWarning />
+      <ShortcutSheet />
+      <BackupWarning />
+      <CommandPalette />
       <AnimatePresence mode="wait">
         <Routes>
           <Route path="/" element={<Dashboard />} />

@@ -13,7 +13,7 @@ export interface Project {
 }
 
 export interface ProjectSettings {
-  theme?: 'lain' | 'matrix';
+  theme?: 'lain' | 'matrix' | 'light';
   typewriterMode?: boolean;
   focusMode?: boolean;
   digitalRain?: boolean;
@@ -25,6 +25,8 @@ export interface ProjectSettings {
   authorName?: string;
   labels?: ProjectLabel[];
   exportDefaults?: Partial<ExportOptions>;
+  revisionMode?: boolean;
+  revisionRound?: number;
 }
 
 export interface ProjectLabel {
@@ -37,6 +39,7 @@ export interface Chapter {
   projectId: number;
   title: string;
   order: number;
+  sectionType?: string;
 }
 
 export interface Scene {
@@ -49,11 +52,58 @@ export interface Scene {
   synopsis?: string;
   notes?: string;
   status: 'draft' | 'revision' | 'final';
+  /** ISO date string (YYYY-MM-DD) for in-story timeline anchoring */
+  storyDate?: string;
   label?: string;
   tags?: string[];
   wordTarget?: number;
   lastEditedAt: number;
+  sectionType?: string;
+  customMeta?: Record<string, string>;
 }
+
+/** Built-in scene starter content (TipTap JSON string) for templates in sceneTemplates.ts */
+export interface SceneTemplate {
+  id: string;
+  name: string;
+  content: string; // TipTap JSON string
+  category: 'built-in' | 'custom';
+}
+
+export interface ParagraphStyle {
+  id?: number;
+  projectId: number;
+  name: string;
+  type: 'paragraph' | 'character';
+  fontFamily?: string;
+  fontSize?: number;
+  bold?: boolean;
+  italic?: boolean;
+  alignment?: 'left' | 'center' | 'right' | 'justify';
+  indent?: number;
+  lineSpacing?: number;
+  spaceAfter?: number;
+}
+
+export const SECTION_TYPES = [
+  'Part',
+  'Chapter',
+  'Scene',
+  'Prologue',
+  'Epilogue',
+  'Front Matter',
+  'Back Matter',
+  'Chapter Heading',
+  'Part Heading',
+  'Title Page',
+  'Copyright',
+  'Dedication',
+  'Epigraph',
+  'Table of Contents',
+  'Appendix',
+  'Notes',
+  'Bibliography',
+] as const;
 
 export interface Character {
   id?: number;
@@ -66,6 +116,22 @@ export interface Character {
   goal?: string;
   conflict?: string;
   epiphany?: string;
+  age?: string;
+  gender?: string;
+  appearance?: string;
+  backstory?: string;
+  arc?: string;
+  notes?: string;
+  tags?: string[];
+}
+
+export interface Location {
+  id?: number;
+  projectId: number;
+  name: string;
+  description?: string;
+  parentId?: number;
+  tags?: string[];
 }
 
 export interface Relationship {
@@ -146,11 +212,21 @@ export interface TrashItem {
   originalTitle: string;
 }
 
+export interface Comment {
+  id?: number;
+  projectId: number;
+  sceneId: number;
+  selectedText: string;
+  body: string;
+  createdAt: number;
+  resolved: boolean;
+}
+
 /* ==============================
    Export Types
    ============================== */
 
-export type ExportFormat = 'markdown' | 'plaintext' | 'html' | 'epub' | 'docx' | 'pdf' | 'json';
+export type ExportFormat = 'markdown' | 'plaintext' | 'html' | 'epub' | 'docx' | 'rtf' | 'pdf' | 'json';
 
 export type ExportScope = 'full' | 'chapter' | 'scene';
 
@@ -176,15 +252,53 @@ export interface ExportOptions {
   chapterPageBreaks: boolean;
 }
 
+export interface CompilePreset {
+  id?: number;
+  projectId: number;
+  name: string;
+  isBuiltIn: boolean;
+  options: ExportOptions;
+}
+
+export interface Collection {
+  id?: number;
+  projectId: number;
+  name: string;
+  type: 'manual' | 'smart';
+  sceneIds?: number[];
+  rules?: CollectionRule[];
+}
+
+export interface CollectionRule {
+  field: 'status' | 'label' | 'tag' | 'chapter';
+  operator: 'equals' | 'contains' | 'not_equals';
+  value: string;
+}
+
+export interface Asset {
+  id?: number;
+  projectId: number;
+  filename: string;
+  mimeType: string;
+  data: Blob;
+  createdAt: number;
+}
+
 /* ==============================
    UI State Types
    ============================== */
 
-export type ThemeMode = 'lain' | 'matrix';
+export type ThemeMode = 'lain' | 'matrix' | 'light';
 
-export type RightPanelView = 'timeline' | 'constellation' | 'characters' | 'snapshots' | 'none';
+export type RightPanelView =
+  | 'timeline'
+  | 'constellation'
+  | 'characters'
+  | 'snapshots'
+  | 'nameGenerator'
+  | 'none';
 
-export type CenterView = 'editor' | 'corkboard' | 'outliner' | 'scrivenings';
+export type CenterView = 'editor' | 'corkboard' | 'outliner' | 'scrivenings' | 'plotBeats';
 
 export interface BinderItem {
   type: 'chapter' | 'scene';

@@ -1,0 +1,135 @@
+.container {
+  padding: 16px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.templateSelect {
+  padding: 4px 8px;
+  font-size: 0.82rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--divider);
+  border-radius: 4px;
+  color: var(--text-primary);
+}
+
+.track {
+  display: flex;
+  border-radius: 6px;
+  overflow: hidden;
+  min-height: 48px;
+  cursor: pointer;
+}
+
+.beat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 2px;
+  min-width: 30px;
+  transition: filter 0.2s ease, transform 0.2s ease;
+  position: relative;
+  opacity: 0.8;
+}
+
+.beat:hover {
+  opacity: 1;
+  filter: brightness(1.2);
+}
+
+.beatSelected {
+  opacity: 1;
+  filter: brightness(1.3);
+  transform: scaleY(1.15);
+  z-index: 1;
+}
+
+.beatName {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: white;
+  text-align: center;
+  line-height: 1.1;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.beatCount {
+  font-size: 0.6rem;
+  color: rgba(255,255,255,0.8);
+  background: rgba(0,0,0,0.3);
+  border-radius: 8px;
+  padding: 0 4px;
+  margin-top: 2px;
+}
+
+.detail {
+  margin-top: 16px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  border: 1px solid var(--divider);
+}
+
+.detailTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.detailDesc {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.detailScenes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detailLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.noScenes {
+  font-size: 0.82rem;
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.sceneList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.sceneList li {
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  padding: 2px 0;
+}

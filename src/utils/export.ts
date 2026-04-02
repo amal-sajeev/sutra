@@ -12,8 +12,13 @@ import {
   PageBreak,
   BorderStyle,
   LevelFormat,
+  Header,
+  Footer,
+  PageNumber,
+  TabStopType,
 } from 'docx';
-import type { Project, Chapter, Scene, ExportOptions } from '../types';
+import type { Project, Chapter, Scene, ExportOptions, CompilePreset, ParagraphStyle } from '../types';
+import RevisionMark from '../extensions/RevisionMark';
 
 /* ------------------------------------------------------------------ */
 /*  TipTap JSON node / mark shapes                                    */
@@ -40,6 +45,16 @@ const tiptapExtensions = [
   StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
   Link.configure({ openOnClick: false }),
   Typography,
+  RevisionMark,
+];
+
+export const DEFAULT_PARAGRAPH_STYLES: Omit<ParagraphStyle, 'id' | 'projectId'>[] = [
+  { name: 'Body Text', type: 'paragraph', fontSize: 12, lineSpacing: 1.8, indent: 1.5 },
+  { name: 'Chapter Heading', type: 'paragraph', fontSize: 24, bold: true, alignment: 'center', spaceAfter: 40 },
+  { name: 'Scene Heading', type: 'paragraph', fontSize: 16, bold: true, spaceAfter: 20 },
+  { name: 'Block Quote', type: 'paragraph', fontSize: 12, italic: true, indent: 2, lineSpacing: 1.6 },
+  { name: 'Dialogue', type: 'paragraph', fontSize: 12, lineSpacing: 1.6 },
+  { name: 'Epigraph', type: 'paragraph', fontSize: 11, italic: true, alignment: 'right', spaceAfter: 30 },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -546,6 +561,42 @@ export async function buildDOCX(
     }
   }
 
+  const headerDefault = new Header({
+    children: [
+      new Paragraph({
+        children: [
+          new TextRun({ text: options.authorName || '', size: 18, color: '999999', font: rawFont }),
+          new TextRun({ text: '\t' }),
+          new TextRun({
+            text: project.title.slice(0, 40),
+            size: 18,
+            color: '999999',
+            font: rawFont,
+            italics: true,
+          }),
+          new TextRun({ text: '\t' }),
+        ],
+        tabStops: [
+          { type: TabStopType.CENTER, position: Math.round(pg.w / 2 - TWIP) },
+          { type: TabStopType.RIGHT, position: pg.w - TWIP * 2 },
+        ],
+      }),
+    ],
+  });
+
+  const headerFirst = new Header({
+    children: [new Paragraph({ children: [] })],
+  });
+
+  const footerDefault = new Footer({
+    children: [
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [new TextRun({ children: [PageNumber.CURRENT], size: 18, color: '999999' })],
+      }),
+    ],
+  });
+
   const doc = new Document({
     numbering: {
       config: [{
@@ -561,11 +612,16 @@ export async function buildDOCX(
     },
     sections: [{
       properties: {
+        titlePage: options.includeFrontMatter,
         page: {
           size: { width: pg.w, height: pg.h },
           margin: { top: TWIP, right: TWIP, bottom: TWIP, left: TWIP },
         },
       },
+      headers: options.includeFrontMatter
+        ? { default: headerDefault, first: headerFirst }
+        : { default: headerDefault },
+      footers: { default: footerDefault },
       children: kids,
     }],
   });
@@ -587,6 +643,7 @@ function nodeToParas(n: TTNode, font: string, sz: number, ls: number): Paragraph
       return [new Paragraph({
         children: ttRuns(n, font, sz),
         spacing: { line: ls, after: 80 },
+        widowControl: true,
       })];
 
     case 'heading': {
@@ -741,9 +798,19 @@ export async function performExport(
     case 'docx':
       downloadBlob(await buildDOCX(project, g.chapters, g.scenes, options), `${name}.docx`);
       break;
-    case 'pdf':
-      printDocument(project, g.chapters, g.scenes, options);
+    case 'rtf': {
+      const { buildRTF } = await import('./rtfExport');
+      downloadFile(buildRTF(project, g.chapters, g.scenes, options, activeSceneId), `${name}.rtf`, 'application/rtf');
       break;
+    }
+    case 'pdf': {
+      const { buildPDF } = await import('./pdfExport');
+      downloadBlob(
+        await buildPDF(project, g.chapters, g.scenes, options, activeSceneId),
+        `${name}.pdf`,
+      );
+      break;
+    }
     case 'json':
       break;
   }
@@ -788,3 +855,86 @@ export const DEFAULT_EXPORT_OPTIONS: ExportOptions = {
   authorName: '',
   chapterPageBreaks: true,
 };
+
+export const BUILT_IN_PRESETS: Omit<CompilePreset, 'id' | 'projectId'>[] = [
+  {
+    name: 'Standard Manuscript',
+    isBuiltIn: true,
+    options: {
+      format: 'docx',
+      scope: 'full',
+      includeTitle: true,
+      includeChapterHeadings: true,
+      includeSceneTitles: false,
+      sceneSeparator: 'asterisks',
+      includeSynopsis: false,
+      includeFrontMatter: true,
+      fontFamily: '"Times New Roman", serif',
+      fontSize: 12,
+      lineSpacing: 2.0,
+      pageSize: 'letter',
+      authorName: '',
+      chapterPageBreaks: true,
+    },
+  },
+  {
+    name: 'E-book EPUB',
+    isBuiltIn: true,
+    options: {
+      format: 'epub',
+      scope: 'full',
+      includeTitle: true,
+      includeChapterHeadings: true,
+      includeSceneTitles: false,
+      sceneSeparator: 'asterisks',
+      includeSynopsis: false,
+      includeFrontMatter: true,
+      fontFamily: 'Georgia, serif',
+      fontSize: 16,
+      lineSpacing: 1.6,
+      pageSize: 'letter',
+      authorName: '',
+      chapterPageBreaks: true,
+    },
+  },
+  {
+    name: 'Trade Paperback',
+    isBuiltIn: true,
+    options: {
+      format: 'pdf',
+      scope: 'full',
+      includeTitle: true,
+      includeChapterHeadings: true,
+      includeSceneTitles: false,
+      sceneSeparator: 'asterisks',
+      includeSynopsis: false,
+      includeFrontMatter: true,
+      fontFamily: '"Garamond", serif',
+      fontSize: 11,
+      lineSpacing: 1.5,
+      pageSize: '6x9',
+      authorName: '',
+      chapterPageBreaks: true,
+    },
+  },
+  {
+    name: 'Proofing Copy',
+    isBuiltIn: true,
+    options: {
+      format: 'pdf',
+      scope: 'full',
+      includeTitle: true,
+      includeChapterHeadings: true,
+      includeSceneTitles: true,
+      sceneSeparator: 'rule',
+      includeSynopsis: true,
+      includeFrontMatter: true,
+      fontFamily: '"Inter", sans-serif',
+      fontSize: 14,
+      lineSpacing: 1.8,
+      pageSize: 'letter',
+      authorName: '',
+      chapterPageBreaks: true,
+    },
+  },
+];

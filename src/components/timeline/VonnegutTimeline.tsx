@@ -6,7 +6,20 @@ import PanelMaxBtn from '../ui/PanelMaxBtn';
 import ContextMenu from '../ui/ContextMenu';
 import type { ContextMenuItem } from '../ui/ContextMenu';
 import styles from './VonnegutTimeline.module.css';
-import type { CharacterAppearance } from '../../types';
+import type { CharacterAppearance, Scene } from '../../types';
+
+function parseStoryDateMs(iso: string): number | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso.trim());
+  if (!m) return null;
+  const t = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return Number.isNaN(t) ? null : t;
+}
+
+function formatStoryDateLabel(iso: string): string {
+  const ms = parseStoryDateMs(iso);
+  if (ms === null) return iso;
+  return new Date(ms).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}
 
 /* ─── Layout constants ─── */
 const PADDING_TOP = 70;
@@ -55,6 +68,7 @@ export default function VonnegutTimeline() {
   const [newEventWidth, setNewEventWidth] = useState(0.05);
   const [newEventColor, setNewEventColor] = useState('#c4915e');
   const [editingEventId, setEditingEventId] = useState<number | null>(null);
+  const [timeAxis, setTimeAxis] = useState<'plot' | 'story'>('plot');
   const scrollRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -103,6 +117,71 @@ export default function VonnegutTimeline() {
     return LABEL_PAD_LEFT + maxLen * CHAR_PX_WIDTH + LABEL_GAP;
   }, [characters]);
 
+  const sortedChapters = useMemo(
+    () => [...chapters].sort((a, b) => a.order - b.order),
+    [chapters]
+  );
+
+  const orderedScenes = useMemo(() => {
+    const list: Scene[] = [];
+    for (const ch of sortedChapters) {
+      const ss = scenes.filter((s) => s.chapterId === ch.id).sort((a, b) => a.order - b.order);
+      list.push(...ss);
+    }
+    return list;
+  }, [sortedChapters, scenes]);
+
+  const storyDateRange = useMemo(() => {
+    let min = Infinity;
+    let max = -Infinity;
+    for (const s of scenes) {
+      if (!s.storyDate) continue;
+      const t = parseStoryDateMs(s.storyDate);
+      if (t !== null) {
+        min = Math.min(min, t);
+        max = Math.max(max, t);
+      }
+    }
+    if (min === Infinity) return { min: 0, max: 0, hasScale: false };
+    return { min, max, hasScale: true };
+  }, [scenes]);
+
+  const scenePlotFraction = useMemo(() => {
+    const m = new Map<number, number>();
+    const n = orderedScenes.length;
+    if (n === 0) return m;
+    orderedScenes.forEach((s, i) => {
+      if (s.id != null) m.set(s.id, n > 1 ? i / (n - 1) : 0.5);
+    });
+    return m;
+  }, [orderedScenes]);
+
+  const storyPositionForScene = useCallback(
+    (scene: Scene): number => {
+      if (storyDateRange.hasScale && scene.storyDate) {
+        const t = parseStoryDateMs(scene.storyDate);
+        if (t !== null) {
+          if (storyDateRange.max === storyDateRange.min) return 0.5;
+          return (t - storyDateRange.min) / (storyDateRange.max - storyDateRange.min);
+        }
+      }
+      return scene.id != null ? (scenePlotFraction.get(scene.id) ?? 0.5) : 0.5;
+    },
+    [storyDateRange, scenePlotFraction]
+  );
+
+  const effectiveAppearancePosition = useCallback(
+    (app: CharacterAppearance): number => {
+      if (timeAxis !== 'story' || !storyDateRange.hasScale) return app.position;
+      if (app.sceneId) {
+        const sc = scenes.find((s) => s.id === app.sceneId);
+        if (sc) return storyPositionForScene(sc);
+      }
+      return app.position;
+    },
+    [timeAxis, storyDateRange.hasScale, scenes, storyPositionForScene]
+  );
+
   /* ─── Dynamic dimensions ─── */
   const totalScenes = scenes.length;
   const contentWidth = Math.max(600, totalScenes * 80 + 200 + leftMargin);
@@ -146,29 +225,51 @@ export default function VonnegutTimeline() {
   /* ─── Chapter divisions ─── */
   const chapterDivisions = useMemo(() => {
     const divs: { x: number; label: string }[] = [];
-    let sceneOffset = 0;
-    for (const chapter of chapters) {
+    if (timeAxis === 'plot' || !storyDateRange.hasScale) {
+      let sceneOffset = 0;
+      for (const chapter of sortedChapters) {
+        const chapterScenes = scenes
+          .filter((s) => s.chapterId === chapter.id)
+          .sort((a, b) => a.order - b.order);
+        const x =
+          totalScenes > 0
+            ? leftMargin + (sceneOffset / totalScenes) * lineAreaWidth
+            : leftMargin;
+        divs.push({ x, label: chapter.title });
+        sceneOffset += chapterScenes.length;
+      }
+      return divs;
+    }
+    for (const chapter of sortedChapters) {
       const chapterScenes = scenes
         .filter((s) => s.chapterId === chapter.id)
         .sort((a, b) => a.order - b.order);
-      const x =
-        totalScenes > 0
-          ? leftMargin + (sceneOffset / totalScenes) * lineAreaWidth
-          : leftMargin;
-      divs.push({ x, label: chapter.title });
-      sceneOffset += chapterScenes.length;
+      if (chapterScenes.length === 0) continue;
+      const first = chapterScenes[0];
+      const pos = storyPositionForScene(first);
+      const x = leftMargin + pos * lineAreaWidth;
+      const withDate = chapterScenes.find((s) => s.storyDate);
+      const label = withDate?.storyDate ? formatStoryDateLabel(withDate.storyDate) : chapter.title;
+      divs.push({ x, label });
     }
     return divs;
-  }, [chapters, scenes, totalScenes, leftMargin, lineAreaWidth]);
+  }, [
+    timeAxis,
+    storyDateRange.hasScale,
+    sortedChapters,
+    scenes,
+    totalScenes,
+    leftMargin,
+    lineAreaWidth,
+    storyPositionForScene,
+  ]);
 
   /* ─── Build character paths using fortune for Y ─── */
   const charPaths = useMemo(() => {
     if (characters.length === 0) return [];
     const n = characters.length;
     return characters.map((char, idx) => {
-      let charApps = appearances
-        .filter((a) => a.characterId === char.id)
-        .sort((a, b) => a.position - b.position);
+      let charApps = appearances.filter((a) => a.characterId === char.id);
 
       if (dragId !== null && dragPos) {
         charApps = charApps.map((a) =>
@@ -176,14 +277,20 @@ export default function VonnegutTimeline() {
             ? { ...a, position: dragPos.position, fortune: dragPos.fortune }
             : a
         );
-        charApps.sort((a, b) => a.position - b.position);
       }
 
-      const points = charApps.map((app) => ({
-        x: posToX(app.position),
-        y: fortuneToY(app.fortune ?? 0.5),
-        appearance: app,
-      }));
+      const axisPos = (a: CharacterAppearance) =>
+        a.id === dragId && dragPos ? dragPos.position : effectiveAppearancePosition(a);
+      charApps = [...charApps].sort((a, b) => axisPos(a) - axisPos(b));
+
+      const points = charApps.map((app) => {
+        const pos = axisPos(app);
+        return {
+          x: posToX(pos),
+          y: fortuneToY(app.fortune ?? 0.5),
+          appearance: app,
+        };
+      });
 
       if (points.length === 0) {
         const spread = n > 1 ? 0.2 + (0.6 * (n - 1 - idx)) / (n - 1) : 0.5;
@@ -201,7 +308,7 @@ export default function VonnegutTimeline() {
 
       return { character: char, points, hasData: true, defaultFortune: undefined as number | undefined };
     });
-  }, [characters, appearances, posToX, fortuneToY, leftMargin, timelineWidth, dragId, dragPos]);
+  }, [characters, appearances, posToX, fortuneToY, leftMargin, timelineWidth, dragId, dragPos, effectiveAppearancePosition]);
 
   const hasAnyAppearances = charPaths.some((cp) => cp.hasData);
 
@@ -470,10 +577,17 @@ export default function VonnegutTimeline() {
       {/* ──── Header ──── */}
       <div className={styles.header}>
         <div className={styles.titleRow}>
-          <span className={styles.title}>The Wallpaper</span>
+          <span className={styles.title}>Story Arc</span>
           <PanelMaxBtn />
         </div>
         <div className={styles.actions}>
+          <button
+            type="button"
+            className={`${styles.actionBtn} ${timeAxis === 'story' ? styles.activeBtn : ''}`}
+            onClick={() => setTimeAxis(timeAxis === 'plot' ? 'story' : 'plot')}
+          >
+            {timeAxis === 'plot' ? '📖 Plot Order' : '📅 Story Time'}
+          </button>
           <button className={styles.actionBtn} onClick={() => setShowAddChar(!showAddChar)}>
             + Character
           </button>
@@ -837,7 +951,7 @@ export default function VonnegutTimeline() {
       {/* ──── Empty state ──── */}
       {characters.length === 0 && (
         <div className={styles.empty}>
-          <p>Add characters to see their threads</p>
+          <p>Add characters to see their story arcs</p>
           <p className={styles.emptyHint}>
             Each character becomes a colored line through your story — rising and falling with fortune
           </p>

@@ -10,9 +10,75 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
   padding: 14px 20px;
   border-bottom: 1px solid var(--divider);
   flex-shrink: 0;
+}
+
+.headerRight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.headerControlsRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.sizeToggle {
+  display: flex;
+  gap: 2px;
+  background: var(--bg-secondary);
+  border-radius: 4px;
+  padding: 2px;
+}
+
+.sizeBtn {
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.sizeBtn:hover {
+  color: var(--text-primary);
+}
+
+.sizeBtn.active {
+  background: var(--accent-primary);
+  color: white;
+}
+
+.legend {
+  display: flex;
+  gap: 12px;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.legendDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
 }
 
 .title {
@@ -54,10 +120,43 @@
   align-content: start;
 }
 
+.board_small {
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+}
+
+.board_small .card {
+  min-height: 80px;
+}
+
+.board_small .synopsis {
+  font-size: 0.72rem;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.board_medium {
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.board_large {
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
+.board_large .card {
+  min-height: 200px;
+}
+
+.board_large .synopsis {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 8;
+}
+
 .card {
   background: var(--bg-panel);
   border: 1px solid var(--divider);
-  border-top: 3px solid var(--accent-primary);
+  border-top: 3px solid transparent;
   border-radius: 6px;
   padding: 12px 14px;
   display: flex;
@@ -165,6 +264,23 @@
   font-size: 0.7rem;
   color: var(--text-tertiary);
   white-space: nowrap;
+}
+
+.openBtn {
+  font-size: 0.75rem;
+  color: var(--accent-primary);
+  padding: 2px 8px;
+  border-radius: 3px;
+  opacity: 0;
+  transition: all var(--transition-fast);
+}
+
+.card:hover .openBtn {
+  opacity: 1;
+}
+
+.openBtn:hover {
+  background: var(--accent-glow);
 }
 
 .tags {

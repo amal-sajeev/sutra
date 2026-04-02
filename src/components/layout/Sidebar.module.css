@@ -61,6 +61,53 @@
   padding: 8px 0;
 }
 
+.sectionDivider {
+  padding: 4px 12px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-tertiary);
+  opacity: 0.7;
+  margin-top: 8px;
+}
+
+.binderMatterActions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 12px 8px;
+  flex-shrink: 0;
+}
+
+.binderMatterActions .addBtn {
+  width: 100%;
+  height: auto;
+  min-height: 32px;
+  padding: 8px 12px;
+  justify-content: center;
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.matterBtn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+  text-align: left;
+}
+
+.matterBtn:hover {
+  background: var(--bg-panel-hover);
+  color: var(--accent-primary);
+}
+
 /* Chapter */
 .chapterGroup {
   margin-bottom: 2px;
@@ -169,9 +216,34 @@
 }
 
 .sceneTitle {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.statusDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.notesIcon {
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  opacity: 0.6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notesIcon svg {
+  width: 10px;
+  height: 10px;
 }
 
 .addSceneBtn {
@@ -249,6 +321,12 @@
   color: var(--text-primary);
   border-radius: 3px;
   line-height: 1.5;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.ideaItem:hover {
+  background: var(--bg-panel-hover);
 }
 
 .ideaText {

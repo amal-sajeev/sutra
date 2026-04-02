@@ -8,6 +8,7 @@ import { seedDemoProject } from '../../utils/seed';
 import ThemeToggle from '../ui/ThemeToggle';
 import ConfirmDialog from '../ui/ConfirmDialog';
 import SnowflakeWizard from './SnowflakeWizard';
+import ImportDialog from '../import/ImportDialog';
 import { useToastStore } from '../../stores/toastStore';
 import styles from './Dashboard.module.css';
 
@@ -28,6 +29,7 @@ export default function Dashboard() {
   const [editingProjectId, setEditingProjectId] = useState<number | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const addToast = useToastStore((s) => s.addToast);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -184,6 +186,10 @@ export default function Dashboard() {
               {importing ? 'Importing...' : 'Import Project'}
             </button>
             <span className={styles.actionDivider}>|</span>
+            <button className={styles.wizardBtn} onClick={() => setImportDialogOpen(true)}>
+              Import DOCX/MD
+            </button>
+            <span className={styles.actionDivider}>|</span>
             <button
               className={styles.wizardBtn}
               onClick={async () => {
@@ -318,7 +324,17 @@ export default function Dashboard() {
                     {project.oneSentence && (
                       <p className={styles.cardSynopsis}>{project.oneSentence}</p>
                     )}
-                    <span className={styles.cardDate}>{formatDate(project.updatedAt)}</span>
+                    <div className={styles.cardMeta}>
+                      <span className={styles.cardDate}>{formatDate(project.updatedAt)}</span>
+                      {project.settings?.manuscriptTarget ? (
+                        <span className={styles.cardTarget}>
+                          {project.settings.manuscriptTarget.toLocaleString()}w target
+                        </span>
+                      ) : null}
+                      {project.settings?.authorName ? (
+                        <span className={styles.cardAuthor}>{project.settings.authorName}</span>
+                      ) : null}
+                    </div>
                   </div>
                   <div className={styles.cardActions}>
                     <button
@@ -372,6 +388,8 @@ export default function Dashboard() {
           </motion.div>
         )}
       </div>
+
+      <ImportDialog isOpen={importDialogOpen} onClose={() => setImportDialogOpen(false)} />
 
       <ConfirmDialog
         isOpen={deleteConfirm !== null}

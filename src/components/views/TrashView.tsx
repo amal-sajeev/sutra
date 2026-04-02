@@ -55,8 +55,9 @@ export default function TrashView({ isOpen, onClose }: TrashViewProps) {
       <ConfirmDialog
         isOpen={confirmEmpty}
         title="Empty Trash"
-        message="Permanently delete all items in the trash? This cannot be undone."
+        message={`Permanently delete ${trashItems.length} ${trashItems.length === 1 ? 'item' : 'items'}? This cannot be undone.`}
         confirmLabel="Empty Trash"
+        danger
         onConfirm={() => { emptyTrash(); setConfirmEmpty(false); }}
         onCancel={() => setConfirmEmpty(false)}
       />

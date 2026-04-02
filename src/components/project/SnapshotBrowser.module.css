@@ -116,6 +116,38 @@
   justify-content: space-between;
 }
 
+.itemInlineActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.inlineBtn {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  padding: 0;
+  background: transparent;
+  border-radius: 3px;
+  color: var(--text-tertiary);
+  font-size: 0.9rem;
+  cursor: pointer;
+  opacity: 0;
+  transition: all var(--transition-fast);
+}
+
+.item:hover .inlineBtn {
+  opacity: 1;
+}
+
+.inlineBtn:hover {
+  background: var(--bg-panel-hover);
+  color: var(--text-primary);
+}
+
 .itemName {
   font-size: 1rem;
   font-weight: 600;

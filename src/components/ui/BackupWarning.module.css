@@ -1,0 +1,75 @@
+.banner {
+  background: rgba(212, 167, 69, 0.15);
+  border-bottom: 1px solid rgba(212, 167, 69, 0.3);
+  padding: 8px 16px;
+  flex-shrink: 0;
+}
+
+.content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.content svg {
+  color: #d4a745;
+  flex-shrink: 0;
+}
+
+.text {
+  flex: 1;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.text strong {
+  color: var(--text-primary);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.persistBtn {
+  padding: 4px 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #d4a745;
+  border: 1px solid rgba(212, 167, 69, 0.4);
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  background: transparent;
+  cursor: pointer;
+}
+
+.persistBtn:hover {
+  background: rgba(212, 167, 69, 0.2);
+}
+
+.persistOk {
+  font-size: 0.8rem;
+  color: #4aa86a;
+  font-weight: 600;
+}
+
+.dismissBtn {
+  padding: 4px 12px;
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.dismissBtn:hover {
+  background: var(--bg-panel-hover);
+  color: var(--text-primary);
+}

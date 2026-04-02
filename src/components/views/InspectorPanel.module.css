@@ -31,6 +31,12 @@
   gap: 4px;
 }
 
+.fieldRow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .label {
   font-size: 0.72rem;
   font-weight: 600;
@@ -72,20 +78,60 @@
   border-color: var(--accent-primary);
 }
 
-.targetRow {
+.charTags {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 6px;
 }
 
-.targetRow .input {
+.charTag {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 0.8rem;
+  border: 1px solid var(--divider);
+  border-radius: 12px;
+  color: var(--text-primary);
+}
+
+.charTagRemove {
+  font-size: 0.9rem;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.charTagRemove:hover {
+  color: var(--text-primary);
+}
+
+.targetStack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.targetInputRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.targetInputRow .input {
   flex: 1;
 }
 
-.targetCount {
-  font-size: 0.78rem;
+.targetLabel {
+  font-size: 0.8rem;
   color: var(--text-tertiary);
-  white-space: nowrap;
+}
+
+.targetCurrent {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 500;
 }
 
 .progressBar {
@@ -93,7 +139,6 @@
   background: var(--bg-secondary);
   border-radius: 2px;
   overflow: hidden;
-  margin-top: 2px;
 }
 
 .progressFill {
@@ -101,15 +146,6 @@
   border-radius: 2px;
   background: var(--accent-primary);
   transition: width 0.3s ease;
-}
-
-.snapRow {
-  display: flex;
-  gap: 4px;
-}
-
-.snapRow .input {
-  flex: 1;
 }
 
 .snapBtn {
@@ -157,4 +193,196 @@
   font-size: 0.72rem;
   color: var(--text-tertiary);
   padding: 2px 6px;
+}
+
+.commentList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.commentEmpty {
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+  line-height: 1.45;
+}
+
+.commentCard {
+  padding: 8px;
+  background: var(--bg-primary);
+  border: 1px solid var(--divider);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.commentResolved {
+  opacity: 0.65;
+}
+
+.commentQuote {
+  margin: 0;
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  font-style: italic;
+  color: var(--text-secondary);
+  border-left: 3px solid rgba(212, 167, 69, 0.55);
+  background: var(--bg-secondary);
+  border-radius: 0 4px 4px 0;
+}
+
+.commentBody {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--text-primary);
+}
+
+.commentMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.68rem;
+  color: var(--text-tertiary);
+}
+
+.commentBadge {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent-primary);
+}
+
+.commentActions {
+  display: flex;
+  gap: 6px;
+}
+
+.commentActionBtn {
+  padding: 3px 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+  border: 1px solid var(--border-active);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.commentActionBtn:hover {
+  background: var(--accent-glow);
+}
+
+.commentActionDanger {
+  color: var(--text-tertiary);
+  border-color: var(--divider);
+}
+
+.commentActionDanger:hover {
+  color: var(--text-primary);
+  background: var(--bg-panel-hover);
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.addFieldBtn {
+  font-size: 0.78rem;
+  color: var(--accent-primary);
+  padding: 2px 8px;
+  border-radius: 3px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+.addFieldBtn:hover {
+  background: var(--accent-glow);
+}
+
+.customField {
+  margin-bottom: 6px;
+}
+
+.customFieldLabel {
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 2px;
+  display: block;
+}
+
+.customFieldRow {
+  display: flex;
+  gap: 4px;
+}
+
+.customFieldRow .input {
+  flex: 1;
+}
+
+.customFieldRemove {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  color: var(--text-tertiary);
+  border-radius: 3px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.customFieldRemove:hover {
+  background: var(--bg-panel-hover);
+  color: var(--text-primary);
+}
+
+.readabilityGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.readStat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px;
+  background: var(--bg-secondary);
+  border-radius: 4px;
+}
+
+.readValue {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.readLabel {
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
+.readLevel {
+  font-size: 0.8rem;
+  color: var(--accent-primary);
+  font-weight: 500;
 }

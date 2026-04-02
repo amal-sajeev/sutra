@@ -265,10 +265,31 @@
   white-space: nowrap;
 }
 
+.cardMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
 .cardDate {
   font-size: 0.9rem;
   color: var(--text-tertiary);
-  margin-top: 4px;
+}
+
+.cardTarget {
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+  background: var(--bg-tertiary);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.cardAuthor {
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+  font-style: italic;
 }
 
 .cardActions {

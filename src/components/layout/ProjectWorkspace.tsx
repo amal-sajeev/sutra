@@ -1,8 +1,10 @@
 import { useEffect, useCallback, useRef, useState, lazy, Suspense } from 'react';
+import { useAutoBackup } from '../../hooks/useAutoBackup';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useProjectStore } from '../../stores/projectStore';
 import { useUIStore } from '../../stores/uiStore';
+import type { ProjectSettings, CenterView } from '../../types';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import Editor from '../editor/Editor';
@@ -12,6 +14,7 @@ import styles from './ProjectWorkspace.module.css';
 
 const Corkboard = lazy(() => import('../views/Corkboard'));
 const Outliner = lazy(() => import('../views/Outliner'));
+const PlotBeats = lazy(() => import('../views/PlotBeats'));
 const Scrivenings = lazy(() => import('../views/Scrivenings'));
 const InspectorPanel = lazy(() => import('../views/InspectorPanel'));
 const NoteEditor = lazy(() => import('../views/NoteEditor'));
@@ -33,6 +36,8 @@ export default function ProjectWorkspace() {
   const splitEditor = useUIStore((s) => s.splitEditor);
   const centerView = useUIStore((s) => s.centerView);
   const inspectorOpen = useUIStore((s) => s.inspectorOpen);
+
+  const autoBackup = useAutoBackup();
 
   const [isResizing, setIsResizing] = useState(false);
   const resizeRef = useRef<{ startX: number; startWidth: number } | null>(null);
@@ -80,14 +85,43 @@ export default function ProjectWorkspace() {
   }, [id, loadProject, unloadProject]);
 
   useEffect(() => {
+    const unsub = useUIStore.subscribe((state, prev) => {
+      const project = useProjectStore.getState().activeProject;
+      if (!project?.id) return;
+      const changed: Partial<ProjectSettings> = {};
+      if (state.typewriterMode !== prev.typewriterMode) changed.typewriterMode = state.typewriterMode;
+      if (state.focusMode !== prev.focusMode) changed.focusMode = state.focusMode;
+      if (state.digitalRain !== prev.digitalRain) changed.digitalRain = state.digitalRain;
+      if (Object.keys(changed).length > 0) {
+        useProjectStore.getState().updateProject(project.id, {
+          settings: { ...project.settings, ...changed },
+        });
+      }
+    });
+    return unsub;
+  }, []);
+
+  useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.key === 'b') {
+      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'b') {
         e.preventDefault();
         useUIStore.getState().toggleSidebar();
       }
       if (e.ctrlKey && e.key === '\\') {
         e.preventDefault();
         useUIStore.getState().setSplitEditor(!useUIStore.getState().splitEditor);
+      }
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey) {
+        const viewMap: Record<string, CenterView> = {
+          '1': 'editor',
+          '2': 'corkboard',
+          '3': 'outliner',
+          '4': 'scrivenings',
+        };
+        if (viewMap[e.key]) {
+          e.preventDefault();
+          useUIStore.getState().setCenterView(viewMap[e.key]);
+        }
       }
     };
     window.addEventListener('keydown', handleKey);
@@ -110,7 +144,7 @@ export default function ProjectWorkspace() {
       exit={{ opacity: 0, scale: 0.98 }}
       transition={{ duration: 0.3 }}
     >
-      <TopBar onBack={() => navigate('/')} />
+      <TopBar onBack={() => navigate('/')} autoBackup={autoBackup} />
 
       <div className={styles.main}>
         {!rightPanelMaximized && (
@@ -133,6 +167,8 @@ export default function ProjectWorkspace() {
                   <Corkboard />
                 ) : centerView === 'outliner' ? (
                   <Outliner />
+                ) : centerView === 'plotBeats' ? (
+                  <PlotBeats />
                 ) : centerView === 'scrivenings' ? (
                   <Scrivenings />
                 ) : activeNote ? (

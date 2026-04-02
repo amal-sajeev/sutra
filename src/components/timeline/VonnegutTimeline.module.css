@@ -50,6 +50,11 @@
   background: var(--accent-glow);
 }
 
+.activeBtn {
+  background: var(--accent-primary) !important;
+  color: white !important;
+}
+
 /* Add / Edit forms */
 .addForm {
   display: flex;

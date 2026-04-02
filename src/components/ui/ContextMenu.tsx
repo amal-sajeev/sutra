@@ -1,12 +1,13 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import styles from './ContextMenu.module.css';
 
 export interface ContextMenuItem {
   label: string;
-  action: () => void;
+  action?: () => void;
   danger?: boolean;
   icon?: React.ReactNode;
+  submenu?: ContextMenuItem[];
 }
 
 interface ContextMenuProps {
@@ -19,6 +20,19 @@ interface ContextMenuProps {
 
 export default function ContextMenu({ x, y, items, onClose, isOpen }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
+  const [openSubmenu, setOpenSubmenu] = useState<number | null>(null);
+  const leaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearLeaveTimer = useCallback(() => {
+    if (leaveTimerRef.current) {
+      clearTimeout(leaveTimerRef.current);
+      leaveTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) setOpenSubmenu(null);
+  }, [isOpen]);
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -67,19 +81,72 @@ export default function ContextMenu({ x, y, items, onClose, isOpen }: ContextMen
           exit={{ opacity: 0, scale: 0.95 }}
           transition={{ duration: 0.12 }}
         >
-          {items.map((item, i) => (
-            <button
-              key={i}
-              className={`${styles.item} ${item.danger ? styles.danger : ''}`}
-              onClick={() => {
-                item.action();
-                onClose();
-              }}
-            >
-              {item.icon && <span className={styles.icon}>{item.icon}</span>}
-              {item.label}
-            </button>
-          ))}
+          {items.map((item, i) =>
+            item.submenu && item.submenu.length > 0 ? (
+              <div
+                key={i}
+                className={styles.submenuParent}
+                onMouseEnter={() => {
+                  clearLeaveTimer();
+                  setOpenSubmenu(i);
+                }}
+                onMouseLeave={() => {
+                  clearLeaveTimer();
+                  leaveTimerRef.current = setTimeout(() => setOpenSubmenu((s) => (s === i ? null : s)), 180);
+                }}
+              >
+                <div className={`${styles.item} ${styles.submenuTrigger}`} role="menuitem">
+                  {item.icon && <span className={styles.icon}>{item.icon}</span>}
+                  <span className={styles.submenuLabel}>{item.label}</span>
+                  <span className={styles.submenuChevron} aria-hidden>
+                    ▸
+                  </span>
+                </div>
+                {openSubmenu === i && (
+                  <div
+                    className={styles.submenu}
+                    role="menu"
+                    onMouseEnter={() => {
+                      clearLeaveTimer();
+                      setOpenSubmenu(i);
+                    }}
+                    onMouseLeave={() => {
+                      clearLeaveTimer();
+                      leaveTimerRef.current = setTimeout(() => setOpenSubmenu(null), 180);
+                    }}
+                  >
+                    {item.submenu.map((sub, j) => (
+                      <button
+                        key={j}
+                        type="button"
+                        className={`${styles.item} ${sub.danger ? styles.danger : ''}`}
+                        onClick={() => {
+                          sub.action?.();
+                          onClose();
+                        }}
+                      >
+                        {sub.icon && <span className={styles.icon}>{sub.icon}</span>}
+                        {sub.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <button
+                key={i}
+                type="button"
+                className={`${styles.item} ${item.danger ? styles.danger : ''}`}
+                onClick={() => {
+                  item.action?.();
+                  onClose();
+                }}
+              >
+                {item.icon && <span className={styles.icon}>{item.icon}</span>}
+                {item.label}
+              </button>
+            )
+          )}
         </motion.div>
       )}
     </AnimatePresence>

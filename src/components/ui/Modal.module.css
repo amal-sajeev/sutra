@@ -11,6 +11,9 @@
 
 .modal {
   width: 90%;
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
   background: var(--bg-overlay);
   border: 1px solid var(--border-color);
   border-radius: var(--chrome-radius);
@@ -49,4 +52,6 @@
 
 .body {
   padding: 20px;
+  overflow-y: auto;
+  flex: 1;
 }

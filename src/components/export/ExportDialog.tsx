@@ -1,10 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useProjectStore } from '../../stores/projectStore';
 import { useToastStore } from '../../stores/toastStore';
-import { performExport, downloadFile, DEFAULT_EXPORT_OPTIONS } from '../../utils/export';
-import { exportProject } from '../../db/operations';
+import { performExport, downloadFile, DEFAULT_EXPORT_OPTIONS, BUILT_IN_PRESETS } from '../../utils/export';
+import { exportProject, createCompilePreset, getCompilePresets, deleteCompilePreset } from '../../db/operations';
 import Modal from '../ui/Modal';
-import type { ExportOptions, ExportFormat, ExportScope, SceneSeparator, PageSize } from '../../types';
+import type { ExportOptions, ExportFormat, ExportScope, SceneSeparator, PageSize, CompilePreset } from '../../types';
 import styles from './ExportDialog.module.css';
 
 interface ExportDialogProps {
@@ -18,7 +18,8 @@ const FORMATS: { key: ExportFormat; label: string; ext: string; desc: string; ic
   { key: 'html',      label: 'HTML',       ext: '.html',        desc: 'Standalone web page',               icon: '</>' },
   { key: 'epub',      label: 'EPUB',       ext: '.epub',        desc: 'Standard e-book format',            icon: '\uD83D\uDCD6' },
   { key: 'docx',      label: 'Word',       ext: '.docx',        desc: 'Microsoft Word document',           icon: 'W' },
-  { key: 'pdf',       label: 'Print/PDF',  ext: '',             desc: 'Browser print dialog',              icon: '\uD83D\uDDA8' },
+  { key: 'rtf',       label: 'RTF',        ext: '.rtf',         desc: 'Rich Text Format',                  icon: 'R' },
+  { key: 'pdf',       label: 'PDF',        ext: '.pdf',         desc: 'Formatted PDF with headers',        icon: '\uD83D\uDDA8' },
   { key: 'json',      label: 'JSON',       ext: '.sutra.json',  desc: 'Full project backup',               icon: '{}' },
 ];
 
@@ -48,9 +49,9 @@ const PAGE_SIZES: { value: PageSize; label: string }[] = [
   { value: '6x9',    label: 'Trade (6 \u00D7 9\u2033)' },
 ];
 
-const needsTypography = (f: ExportFormat) => ['html', 'epub', 'docx', 'pdf'].includes(f);
-const needsPage       = (f: ExportFormat) => ['docx', 'pdf'].includes(f);
-const needsMeta       = (f: ExportFormat) => ['epub', 'docx', 'html', 'pdf'].includes(f);
+const needsTypography = (f: ExportFormat) => ['html', 'epub', 'docx', 'rtf', 'pdf'].includes(f);
+const needsPage       = (f: ExportFormat) => ['docx', 'rtf', 'pdf'].includes(f);
+const needsMeta       = (f: ExportFormat) => ['epub', 'docx', 'html', 'rtf', 'pdf'].includes(f);
 
 export default function ExportDialog({ isOpen, onClose }: ExportDialogProps) {
   const project    = useProjectStore(s => s.activeProject);
@@ -61,10 +62,33 @@ export default function ExportDialog({ isOpen, onClose }: ExportDialogProps) {
 
   const [opts, setOpts] = useState<ExportOptions>({ ...DEFAULT_EXPORT_OPTIONS });
   const [exporting, setExporting] = useState(false);
+  const [presets, setPresets] = useState<CompilePreset[]>([]);
+  const [savePresetName, setSavePresetName] = useState('');
+  const [showSavePreset, setShowSavePreset] = useState(false);
 
   const patch = useCallback((p: Partial<ExportOptions>) => {
     setOpts(prev => ({ ...prev, ...p }));
   }, []);
+
+  useEffect(() => {
+    if (project?.id && isOpen) {
+      getCompilePresets(project.id).then(setPresets).catch(() => {});
+    }
+  }, [project?.id, isOpen]);
+
+  const handleSavePreset = useCallback(async () => {
+    if (!savePresetName.trim() || !project?.id) return;
+    const name = savePresetName.trim();
+    const id = await createCompilePreset({
+      projectId: project.id,
+      name,
+      isBuiltIn: false,
+      options: { ...opts },
+    });
+    setPresets(prev => [...prev, { id, projectId: project.id!, name, isBuiltIn: false, options: { ...opts } }]);
+    setSavePresetName('');
+    setShowSavePreset(false);
+  }, [savePresetName, project?.id, opts]);
 
   const handleExport = useCallback(async () => {
     if (!project) return;
@@ -93,6 +117,64 @@ export default function ExportDialog({ isOpen, onClose }: ExportDialogProps) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Export Manuscript" width="640px">
       <div className={styles.wrap}>
+
+        <section className={styles.section}>
+          <h4 className={styles.sectionTitle}>Presets</h4>
+          <div className={styles.presetRow}>
+            {BUILT_IN_PRESETS.map((p, i) => (
+              <button
+                key={`builtin-${i}`}
+                type="button"
+                className={styles.presetBtn}
+                onClick={() => patch(p.options)}
+              >
+                {p.name}
+              </button>
+            ))}
+            {presets.map(p => (
+              <button
+                key={p.id}
+                type="button"
+                className={styles.presetBtn}
+                onClick={() => patch(p.options)}
+              >
+                {p.name}
+                <span
+                  className={styles.presetDelete}
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    if (p.id) {
+                      await deleteCompilePreset(p.id);
+                      setPresets(prev => prev.filter(x => x.id !== p.id));
+                    }
+                  }}
+                >
+                  ×
+                </span>
+              </button>
+            ))}
+          </div>
+          <div className={styles.presetSaveRow}>
+            {showSavePreset ? (
+              <>
+                <input
+                  className={styles.input}
+                  placeholder="Preset name..."
+                  value={savePresetName}
+                  onChange={e => setSavePresetName(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleSavePreset(); }}
+                  autoFocus
+                />
+                <button type="button" className={styles.presetSaveBtn} onClick={handleSavePreset}>Save</button>
+                <button type="button" className={styles.presetCancelBtn} onClick={() => { setShowSavePreset(false); setSavePresetName(''); }}>Cancel</button>
+              </>
+            ) : (
+              <button type="button" className={styles.presetSaveBtn} onClick={() => setShowSavePreset(true)}>
+                Save Current as Preset
+              </button>
+            )}
+          </div>
+        </section>
 
         {/* ── Format ── */}
         <section className={styles.section}>

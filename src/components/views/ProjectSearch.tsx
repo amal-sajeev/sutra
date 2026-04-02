@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect, type ReactNode } from 'react';
 import { useProjectStore } from '../../stores/projectStore';
 import { useUIStore } from '../../stores/uiStore';
 import Modal from '../ui/Modal';
@@ -39,12 +39,32 @@ function getExcerpt(text: string, query: string, radius = 60): string {
   return excerpt;
 }
 
+function highlightMatches(text: string, query: string): ReactNode {
+  if (!query.trim()) return text;
+  const parts: ReactNode[] = [];
+  const lower = text.toLowerCase();
+  const q = query.toLowerCase();
+  let lastIndex = 0;
+  let idx = lower.indexOf(q);
+  let key = 0;
+  while (idx !== -1) {
+    if (idx > lastIndex) parts.push(text.slice(lastIndex, idx));
+    parts.push(<mark key={key++}>{text.slice(idx, idx + query.length)}</mark>);
+    lastIndex = idx + query.length;
+    idx = lower.indexOf(q, lastIndex);
+  }
+  if (lastIndex < text.length) parts.push(text.slice(lastIndex));
+  return parts.length > 0 ? parts : text;
+}
+
 export default function ProjectSearch({ isOpen, onClose }: ProjectSearchProps) {
   const scenes = useProjectStore(s => s.scenes);
   const chapters = useProjectStore(s => s.chapters);
   const setActiveScene = useProjectStore(s => s.setActiveScene);
   const setCenterView = useUIStore(s => s.setCenterView);
   const [query, setQuery] = useState('');
+  const [chapterFilter, setChapterFilter] = useState<number | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set(['draft', 'revision', 'final']));
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -64,6 +84,8 @@ export default function ProjectSearch({ isOpen, onClose }: ProjectSearchProps) {
     const q = query.toLowerCase();
     const out: SearchResult[] = [];
     for (const scene of scenes) {
+      if (chapterFilter !== 'all' && scene.chapterId !== chapterFilter) continue;
+      if (!statusFilter.has(scene.status)) continue;
       let text = scene.title;
       if (scene.synopsis) text += ' ' + scene.synopsis;
       if (scene.content) {
@@ -87,7 +109,7 @@ export default function ProjectSearch({ isOpen, onClose }: ProjectSearchProps) {
     }
     out.sort((a, b) => b.matchCount - a.matchCount);
     return out;
-  }, [query, scenes, chapterMap]);
+  }, [query, scenes, chapterMap, chapterFilter, statusFilter]);
 
   const handleSelect = useCallback((sceneId: number) => {
     setActiveScene(sceneId);
@@ -114,6 +136,36 @@ export default function ProjectSearch({ isOpen, onClose }: ProjectSearchProps) {
           )}
         </div>
 
+        <div className={styles.filters}>
+          <select
+            className={styles.filterSelect}
+            value={chapterFilter === 'all' ? 'all' : String(chapterFilter)}
+            onChange={e => setChapterFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+          >
+            <option value="all">All chapters</option>
+            {chapters.map(c => (
+              <option key={c.id} value={c.id}>{c.title}</option>
+            ))}
+          </select>
+          <div className={styles.statusFilters}>
+            {['draft', 'revision', 'final'].map(s => (
+              <label key={s} className={styles.statusCheck}>
+                <input
+                  type="checkbox"
+                  checked={statusFilter.has(s)}
+                  onChange={() => {
+                    const next = new Set(statusFilter);
+                    if (next.has(s)) next.delete(s);
+                    else next.add(s);
+                    setStatusFilter(next);
+                  }}
+                />
+                {s}
+              </label>
+            ))}
+          </div>
+        </div>
+
         {query.length >= 2 && (
           <div className={styles.meta}>
             {results.length} result{results.length !== 1 ? 's' : ''} in {scenes.length} scenes
@@ -131,7 +183,7 @@ export default function ProjectSearch({ isOpen, onClose }: ProjectSearchProps) {
                 <span className={styles.resultTitle}>{r.sceneTitle}</span>
                 <span className={styles.resultChapter}>{r.chapterTitle}</span>
               </div>
-              <p className={styles.resultExcerpt}>{r.excerpt}</p>
+              <p className={styles.resultExcerpt}>{highlightMatches(r.excerpt, query)}</p>
               <span className={styles.matchBadge}>{r.matchCount} match{r.matchCount !== 1 ? 'es' : ''}</span>
             </button>
           ))}

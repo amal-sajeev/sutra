@@ -11,6 +11,8 @@
   width: 420px;
   max-width: 90vw;
   overflow: hidden;
+  /* positioning context for absolute close button */
+  position: relative;
 }
 
 /* Lain mode — translucent floating card from right */

@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useProjectStore } from '../../stores/projectStore';
+import { useUIStore } from '../../stores/uiStore';
+import { SECTION_TYPES } from '../../types';
+import { analyzeText, readabilityLabel } from '../../utils/textStats';
 import styles from './InspectorPanel.module.css';
 
 export default function InspectorPanel() {
@@ -8,17 +11,29 @@ export default function InspectorPanel() {
   const updateScene = useProjectStore(s => s.updateScene);
   const snapshots = useProjectStore(s => s.snapshots);
   const loadSnapshots = useProjectStore(s => s.loadSnapshots);
-  const createSnapshot = useProjectStore(s => s.createSnapshot);
-
+  const characters = useProjectStore(s => s.characters);
+  const comments = useProjectStore(s => s.comments);
+  const resolveComment = useProjectStore(s => s.resolveComment);
+  const deleteComment = useProjectStore(s => s.deleteComment);
   const [synopsis, setSynopsis] = useState('');
   const [notes, setNotes] = useState('');
   const [label, setLabel] = useState('');
   const [status, setStatus] = useState<'draft' | 'revision' | 'final'>('draft');
   const [tags, setTags] = useState('');
   const [wordTarget, setWordTarget] = useState(0);
-  const [snapName, setSnapName] = useState('');
 
   const labels = useMemo(() => activeProject?.settings?.labels || [], [activeProject]);
+
+  const textStats = useMemo(() => {
+    if (!activeScene?.content) return null;
+    try {
+      const doc = JSON.parse(activeScene.content) as Record<string, unknown>;
+      const text = extractText(doc);
+      return analyzeText(text);
+    } catch {
+      return null;
+    }
+  }, [activeScene?.content]);
 
   useEffect(() => {
     if (activeScene) {
@@ -35,13 +50,6 @@ export default function InspectorPanel() {
   const save = useCallback((changes: Record<string, unknown>) => {
     if (activeScene?.id) updateScene(activeScene.id, changes);
   }, [activeScene, updateScene]);
-
-  const handleSnapshot = useCallback(() => {
-    if (!activeScene?.id) return;
-    const name = snapName.trim() || `Snapshot ${new Date().toLocaleString()}`;
-    createSnapshot(activeScene.id, name, activeScene.content);
-    setSnapName('');
-  }, [activeScene, snapName, createSnapshot]);
 
   if (!activeScene) {
     return (
@@ -102,6 +110,69 @@ export default function InspectorPanel() {
         </select>
       </div>
 
+      <div className={styles.fieldRow}>
+        <label className={styles.label}>Story Date</label>
+        <input
+          type="date"
+          className={styles.input}
+          value={activeScene?.storyDate || ''}
+          onChange={e => {
+            if (activeScene?.id) updateScene(activeScene.id, { storyDate: e.target.value || undefined });
+          }}
+        />
+      </div>
+
+      <div className={styles.section}>
+        <label className={styles.label}>Section Type</label>
+        <select
+          className={styles.select}
+          value={activeScene?.sectionType || ''}
+          onChange={(e) => save({ sectionType: e.target.value || undefined })}
+        >
+          <option value="">Default</option>
+          {SECTION_TYPES.map((st) => (
+            <option key={st} value={st}>{st}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className={styles.section}>
+        <label className={styles.label}>Characters in Scene</label>
+        <div className={styles.charTags}>
+          {characters.filter(c => (activeScene?.tags || []).includes(`char:${c.id}`)).map(c => (
+            <span key={c.id} className={styles.charTag} style={{ borderColor: c.color }}>
+              {c.name}
+              <button
+                type="button"
+                className={styles.charTagRemove}
+                onClick={() => {
+                  const nextTags = (activeScene?.tags || []).filter(t => t !== `char:${c.id}`);
+                  save({ tags: nextTags.length > 0 ? nextTags : undefined });
+                }}
+              >×</button>
+            </span>
+          ))}
+        </div>
+        <select
+          className={styles.select}
+          value=""
+          onChange={e => {
+            const id = e.target.value;
+            if (id) {
+              const tag = `char:${id}`;
+              const next = [...(activeScene?.tags || []), tag];
+              save({ tags: [...new Set(next)] });
+            }
+            e.target.value = '';
+          }}
+        >
+          <option value="">Add character...</option>
+          {characters.filter(c => c.id != null && !(activeScene?.tags || []).includes(`char:${c.id}`)).map(c => (
+            <option key={c.id} value={String(c.id)}>{c.name}</option>
+          ))}
+        </select>
+      </div>
+
       <div className={styles.section}>
         <label className={styles.label}>Label</label>
         <select
@@ -131,50 +202,165 @@ export default function InspectorPanel() {
       </div>
 
       <div className={styles.section}>
-        <label className={styles.label}>Word Target</label>
-        <div className={styles.targetRow}>
-          <input
-            type="number"
-            className={styles.input}
-            value={wordTarget || ''}
-            onChange={e => setWordTarget(Number(e.target.value) || 0)}
-            onBlur={() => save({ wordTarget: wordTarget || undefined })}
-            placeholder="0"
-            min={0}
-            step={100}
-          />
-          <span className={styles.targetCount}>{wordCount} w</span>
+        <div className={styles.sectionHeader}>
+          <label className={styles.label}>Custom Fields</label>
+          <button
+            type="button"
+            className={styles.addFieldBtn}
+            onClick={() => {
+              const name = prompt('Field name:');
+              if (name?.trim()) {
+                const meta = { ...(activeScene?.customMeta || {}), [name.trim()]: '' };
+                save({ customMeta: meta });
+              }
+            }}
+          >
+            + Field
+          </button>
         </div>
-        {wordTarget > 0 && (
-          <div className={styles.progressBar}>
-            <div className={styles.progressFill} style={{ width: `${targetPct}%` }} />
+        {Object.entries(activeScene?.customMeta || {}).map(([key, value]) => (
+          <div key={key} className={styles.customField}>
+            <label className={styles.customFieldLabel}>{key}</label>
+            <div className={styles.customFieldRow}>
+              <input
+                className={styles.input}
+                value={value}
+                onChange={(e) => {
+                  const meta = { ...(activeScene?.customMeta || {}), [key]: e.target.value };
+                  save({ customMeta: meta });
+                }}
+                placeholder={`${key}...`}
+              />
+              <button
+                type="button"
+                className={styles.customFieldRemove}
+                onClick={() => {
+                  const meta = { ...(activeScene?.customMeta || {}) };
+                  delete meta[key];
+                  save({ customMeta: Object.keys(meta).length > 0 ? meta : undefined });
+                }}
+              >
+                ×
+              </button>
+            </div>
           </div>
-        )}
+        ))}
+      </div>
+
+      {textStats && (
+        <div className={styles.section}>
+          <label className={styles.label}>Readability</label>
+          <div className={styles.readabilityGrid}>
+            <div className={styles.readStat}>
+              <span className={styles.readValue}>{textStats.fleschKincaid}</span>
+              <span className={styles.readLabel}>Grade Level</span>
+            </div>
+            <div className={styles.readStat}>
+              <span className={styles.readValue}>{textStats.avgWordsPerSentence}</span>
+              <span className={styles.readLabel}>Avg Words/Sentence</span>
+            </div>
+            <div className={styles.readStat}>
+              <span className={styles.readValue}>{textStats.sentences}</span>
+              <span className={styles.readLabel}>Sentences</span>
+            </div>
+            <div className={styles.readStat}>
+              <span className={styles.readValue}>{textStats.dialogueRatio}%</span>
+              <span className={styles.readLabel}>Dialogue</span>
+            </div>
+          </div>
+          <span className={styles.readLevel}>{readabilityLabel(textStats.fleschKincaid)}</span>
+        </div>
+      )}
+
+      <div className={styles.section}>
+        <label className={styles.label}>Word Target</label>
+        <div className={styles.targetStack}>
+          <div className={styles.targetInputRow}>
+            <input
+              type="number"
+              className={styles.input}
+              value={wordTarget || ''}
+              onChange={e => setWordTarget(Number(e.target.value) || 0)}
+              onBlur={() => save({ wordTarget: wordTarget || undefined })}
+              placeholder="Target words"
+              min={0}
+              step={100}
+            />
+            <span className={styles.targetLabel}>target</span>
+          </div>
+          <div className={styles.targetCurrent}>
+            {wordCount.toLocaleString()} / {wordTarget > 0 ? wordTarget.toLocaleString() : '—'} words
+          </div>
+          {wordTarget > 0 && (
+            <div className={styles.progressBar}>
+              <div className={styles.progressFill} style={{ width: `${targetPct}%` }} />
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className={styles.section}>
+        <label className={styles.label}>Comments ({comments.length})</label>
+        <div className={styles.commentList}>
+          {comments.length === 0 && (
+            <p className={styles.commentEmpty}>Select text in the editor and use the comment button on the toolbar.</p>
+          )}
+          {comments.map((c) => (
+            <div
+              key={c.id}
+              className={`${styles.commentCard} ${c.resolved ? styles.commentResolved : ''}`}
+            >
+              <blockquote className={styles.commentQuote}>{c.selectedText || '—'}</blockquote>
+              <p className={styles.commentBody}>{c.body}</p>
+              <div className={styles.commentMeta}>
+                <span>{new Date(c.createdAt).toLocaleString()}</span>
+                {c.resolved && <span className={styles.commentBadge}>Resolved</span>}
+              </div>
+              <div className={styles.commentActions}>
+                {!c.resolved && c.id != null && (
+                  <button
+                    type="button"
+                    className={styles.commentActionBtn}
+                    onClick={() => resolveComment(c.id!)}
+                  >
+                    Resolve
+                  </button>
+                )}
+                {c.id != null && (
+                  <button
+                    type="button"
+                    className={`${styles.commentActionBtn} ${styles.commentActionDanger}`}
+                    onClick={() => deleteComment(c.id!)}
+                  >
+                    Delete
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className={styles.section}>
         <label className={styles.label}>Snapshots ({snapshots.length})</label>
-        <div className={styles.snapRow}>
-          <input
-            className={styles.input}
-            value={snapName}
-            onChange={e => setSnapName(e.target.value)}
-            placeholder="Snapshot name"
-            onKeyDown={e => { if (e.key === 'Enter') handleSnapshot(); }}
-          />
-          <button className={styles.snapBtn} onClick={handleSnapshot}>Save</button>
-        </div>
         <div className={styles.snapList}>
-          {snapshots.slice(0, 5).map(s => (
+          {snapshots.slice(0, 3).map(s => (
             <div key={s.id} className={styles.snapItem}>
               <span>{s.name}</span>
               <span className={styles.snapDate}>{new Date(s.createdAt).toLocaleDateString()}</span>
             </div>
           ))}
-          {snapshots.length > 5 && (
-            <span className={styles.snapMore}>{snapshots.length - 5} more...</span>
+          {snapshots.length > 3 && (
+            <span className={styles.snapMore}>{snapshots.length - 3} more...</span>
           )}
         </div>
+        <button
+          className={styles.snapBtn}
+          onClick={() => useUIStore.getState().setRightPanel('snapshots')}
+          style={{ width: '100%', marginTop: '6px' }}
+        >
+          Manage Snapshots
+        </button>
       </div>
     </div>
   );
@@ -185,4 +371,13 @@ function countW(node: Record<string, unknown>): number {
   let n = 0;
   if (Array.isArray(node.content)) for (const c of node.content) n += countW(c as Record<string, unknown>);
   return n;
+}
+
+function extractText(node: Record<string, unknown>): string {
+  if (node.type === 'text') return (node.text as string) || '';
+  let t = '';
+  if (Array.isArray(node.content)) {
+    for (const c of node.content) t += extractText(c as Record<string, unknown>) + '\n';
+  }
+  return t;
 }

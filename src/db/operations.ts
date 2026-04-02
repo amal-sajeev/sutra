@@ -12,6 +12,11 @@ import type {
   NoteDocument,
   WritingHistory,
   TrashItem,
+  Comment,
+  CompilePreset,
+  Collection,
+  Asset,
+  Location,
 } from '../types';
 
 /* ==============================
@@ -24,7 +29,16 @@ export async function createProject(title: string): Promise<number> {
     title,
     createdAt: now,
     updatedAt: now,
-    settings: {},
+    settings: {
+      labels: [
+        { name: 'Concept', color: '#4488cc' },
+        { name: 'To Do', color: '#e55555' },
+        { name: 'In Progress', color: '#d4a745' },
+        { name: 'First Draft', color: '#cc5599' },
+        { name: 'Revised Draft', color: '#8844cc' },
+        { name: 'Final', color: '#4aa86a' },
+      ],
+    },
   });
 }
 
@@ -41,7 +55,7 @@ export async function updateProject(id: number, changes: Partial<Project>): Prom
 }
 
 export async function deleteProject(id: number): Promise<void> {
-  await db.transaction('rw', [db.projects, db.chapters, db.scenes, db.characters, db.relationships, db.ideas, db.timelineEvents, db.characterAppearances, db.snapshots], async () => {
+  await db.transaction('rw', [db.projects, db.chapters, db.scenes, db.characters, db.relationships, db.ideas, db.timelineEvents, db.characterAppearances, db.snapshots, db.comments, db.compilePresets, db.collections, db.assets, db.locations], async () => {
     await db.chapters.where('projectId').equals(id).delete();
     await db.scenes.where('projectId').equals(id).delete();
     await db.characters.where('projectId').equals(id).delete();
@@ -50,6 +64,11 @@ export async function deleteProject(id: number): Promise<void> {
     await db.timelineEvents.where('projectId').equals(id).delete();
     await db.characterAppearances.where('projectId').equals(id).delete();
     await db.snapshots.where('projectId').equals(id).delete();
+    await db.comments.where('projectId').equals(id).delete();
+    await db.compilePresets.where('projectId').equals(id).delete();
+    await db.collections.where('projectId').equals(id).delete();
+    await db.assets.where('projectId').equals(id).delete();
+    await db.locations.where('projectId').equals(id).delete();
     await db.projects.delete(id);
   });
 }
@@ -58,9 +77,23 @@ export async function deleteProject(id: number): Promise<void> {
    Chapter Operations
    ============================== */
 
-export async function createChapter(projectId: number, title: string): Promise<number> {
-  const count = await db.chapters.where('projectId').equals(projectId).count();
-  return db.chapters.add({ projectId, title, order: count });
+export async function createChapter(
+  projectId: number,
+  title: string,
+  order?: number,
+  sectionType?: string
+): Promise<number> {
+  let finalOrder = order;
+  if (finalOrder === undefined) {
+    const list = await db.chapters.where('projectId').equals(projectId).toArray();
+    finalOrder = list.length === 0 ? 0 : Math.max(...list.map((c) => c.order), -Infinity) + 1;
+  }
+  return db.chapters.add({
+    projectId,
+    title,
+    order: finalOrder,
+    sectionType: sectionType || 'Chapter',
+  });
 }
 
 export async function getChapters(projectId: number): Promise<Chapter[]> {
@@ -80,10 +113,13 @@ export async function reorderChapters(_projectId: number, orderedIds: number[]):
 }
 
 export async function deleteChapter(id: number): Promise<void> {
-  await db.transaction('rw', [db.chapters, db.scenes, db.snapshots], async () => {
+  await db.transaction('rw', [db.chapters, db.scenes, db.snapshots, db.comments], async () => {
     const scenes = await db.scenes.where('chapterId').equals(id).toArray();
     for (const scene of scenes) {
-      if (scene.id) await db.snapshots.where('sceneId').equals(scene.id).delete();
+      if (scene.id) {
+        await db.snapshots.where('sceneId').equals(scene.id).delete();
+        await db.comments.where('sceneId').equals(scene.id).delete();
+      }
     }
     await db.scenes.where('chapterId').equals(id).delete();
     await db.chapters.delete(id);
@@ -94,14 +130,19 @@ export async function deleteChapter(id: number): Promise<void> {
    Scene Operations
    ============================== */
 
-export async function createScene(chapterId: number, projectId: number, title: string): Promise<number> {
+export async function createScene(
+  chapterId: number,
+  projectId: number,
+  title: string,
+  initialContent?: string
+): Promise<number> {
   const count = await db.scenes.where('chapterId').equals(chapterId).count();
   const now = Date.now();
   return db.scenes.add({
     chapterId,
     projectId,
     title,
-    content: '',
+    content: initialContent ?? '',
     order: count,
     status: 'draft',
     lastEditedAt: now,
@@ -138,8 +179,9 @@ export async function moveScene(sceneId: number, newChapterId: number): Promise<
 }
 
 export async function deleteScene(id: number): Promise<void> {
-  await db.transaction('rw', [db.scenes, db.snapshots], async () => {
+  await db.transaction('rw', [db.scenes, db.snapshots, db.comments], async () => {
     await db.snapshots.where('sceneId').equals(id).delete();
+    await db.comments.where('sceneId').equals(id).delete();
     await db.scenes.delete(id);
   });
 }
@@ -159,6 +201,13 @@ export async function createCharacter(projectId: number, data: Partial<Character
     goal: data.goal,
     conflict: data.conflict,
     epiphany: data.epiphany,
+    age: data.age,
+    gender: data.gender,
+    appearance: data.appearance,
+    backstory: data.backstory,
+    arc: data.arc,
+    notes: data.notes,
+    tags: data.tags,
   });
 }
 
@@ -177,6 +226,26 @@ export async function deleteCharacter(id: number): Promise<void> {
     await db.characterAppearances.where('characterId').equals(id).delete();
     await db.characters.delete(id);
   });
+}
+
+/* ==============================
+   Location Operations
+   ============================== */
+
+export async function createLocation(data: Omit<Location, 'id'>): Promise<number> {
+  return db.locations.add(data);
+}
+
+export async function getLocations(projectId: number): Promise<Location[]> {
+  return db.locations.where('projectId').equals(projectId).toArray();
+}
+
+export async function updateLocation(id: number, changes: Partial<Location>): Promise<void> {
+  await db.locations.update(id, changes);
+}
+
+export async function deleteLocation(id: number): Promise<void> {
+  await db.locations.delete(id);
 }
 
 /* ==============================
@@ -305,6 +374,7 @@ export async function exportProject(projectId: number) {
   const timelineEvents = await getTimelineEvents(projectId);
   const appearances = await getAppearances(projectId);
   const snapshots = await db.snapshots.where('projectId').equals(projectId).toArray();
+  const locations = await getLocations(projectId);
 
   return {
     version: 1,
@@ -318,6 +388,7 @@ export async function exportProject(projectId: number) {
     timelineEvents,
     appearances,
     snapshots,
+    locations,
   };
 }
 
@@ -328,7 +399,7 @@ export async function exportProject(projectId: number) {
  * Returns the new project ID.
  */
 export async function importProject(data: ReturnType<typeof exportProject> extends Promise<infer T> ? T : never): Promise<number> {
-  return db.transaction('rw', [db.projects, db.chapters, db.scenes, db.characters, db.relationships, db.ideas, db.timelineEvents, db.characterAppearances, db.snapshots], async () => {
+  return db.transaction('rw', [db.projects, db.chapters, db.scenes, db.characters, db.relationships, db.ideas, db.timelineEvents, db.characterAppearances, db.snapshots, db.locations], async () => {
     // 1. Create the project (new ID)
     const oldProject = data.project!;
     const now = Date.now();
@@ -349,6 +420,7 @@ export async function importProject(data: ReturnType<typeof exportProject> exten
         projectId: newProjectId,
         title: ch.title,
         order: ch.order,
+        sectionType: ch.sectionType,
       });
       chapterIdMap.set(oldId, newId);
     }
@@ -384,6 +456,13 @@ export async function importProject(data: ReturnType<typeof exportProject> exten
         goal: char.goal,
         conflict: char.conflict,
         epiphany: char.epiphany,
+        age: char.age,
+        gender: char.gender,
+        appearance: char.appearance,
+        backstory: char.backstory,
+        arc: char.arc,
+        notes: char.notes,
+        tags: char.tags,
       });
       characterIdMap.set(oldId, newId);
     }
@@ -450,6 +529,29 @@ export async function importProject(data: ReturnType<typeof exportProject> exten
         content: snap.content,
         createdAt: snap.createdAt,
       });
+    }
+
+    // 10. Locations — remap IDs and parentId
+    const locationIdMap = new Map<number, number>();
+    const locs = data.locations ?? [];
+    for (const loc of locs) {
+      if (loc.id == null) continue;
+      const oldId = loc.id;
+      const newId = await db.locations.add({
+        projectId: newProjectId,
+        name: loc.name,
+        description: loc.description,
+        tags: loc.tags,
+      });
+      locationIdMap.set(oldId, newId);
+    }
+    for (const loc of locs) {
+      if (loc.id == null || loc.parentId == null) continue;
+      const newId = locationIdMap.get(loc.id);
+      const newParentId = locationIdMap.get(loc.parentId);
+      if (newId != null && newParentId != null) {
+        await db.locations.update(newId, { parentId: newParentId });
+      }
     }
 
     return newProjectId;
@@ -533,4 +635,84 @@ export async function deleteTrashItem(id: number): Promise<void> {
 
 export async function emptyTrash(projectId: number): Promise<void> {
   await db.trash.where('projectId').equals(projectId).delete();
+}
+
+/* ==============================
+   Comment Operations
+   ============================== */
+
+export async function createComment(data: Omit<Comment, 'id'>): Promise<number> {
+  return db.comments.add(data);
+}
+
+export async function getComments(sceneId: number): Promise<Comment[]> {
+  return db.comments.where('sceneId').equals(sceneId).sortBy('createdAt');
+}
+
+export async function getProjectComments(projectId: number): Promise<Comment[]> {
+  return db.comments.where('projectId').equals(projectId).sortBy('createdAt');
+}
+
+export async function updateComment(id: number, changes: Partial<Comment>): Promise<void> {
+  await db.comments.update(id, changes);
+}
+
+export async function deleteComment(id: number): Promise<void> {
+  await db.comments.delete(id);
+}
+
+/* ==============================
+   Compile preset operations
+   ============================== */
+
+export async function createCompilePreset(data: Omit<CompilePreset, 'id'>): Promise<number> {
+  return db.compilePresets.add(data);
+}
+
+export async function getCompilePresets(projectId: number): Promise<CompilePreset[]> {
+  return db.compilePresets.where('projectId').equals(projectId).toArray();
+}
+
+export async function deleteCompilePreset(id: number): Promise<void> {
+  await db.compilePresets.delete(id);
+}
+
+/* ==============================
+   Collection operations
+   ============================== */
+
+export async function createCollection(data: Omit<Collection, 'id'>): Promise<number> {
+  return db.collections.add(data);
+}
+
+export async function getCollections(projectId: number): Promise<Collection[]> {
+  return db.collections.where('projectId').equals(projectId).toArray();
+}
+
+export async function updateCollection(id: number, changes: Partial<Collection>): Promise<void> {
+  await db.collections.update(id, changes);
+}
+
+export async function deleteCollection(id: number): Promise<void> {
+  await db.collections.delete(id);
+}
+
+/* ==============================
+   Asset operations
+   ============================== */
+
+export async function createAsset(data: Omit<Asset, 'id'>): Promise<number> {
+  return db.assets.add(data);
+}
+
+export async function getAsset(id: number): Promise<Asset | undefined> {
+  return db.assets.get(id);
+}
+
+export async function getProjectAssets(projectId: number): Promise<Asset[]> {
+  return db.assets.where('projectId').equals(projectId).toArray();
+}
+
+export async function deleteAsset(id: number): Promise<void> {
+  await db.assets.delete(id);
 }

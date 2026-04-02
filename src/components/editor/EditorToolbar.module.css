@@ -1,4 +1,5 @@
 .toolbar {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 2px;
@@ -7,6 +8,10 @@
   flex-shrink: 0;
   flex-wrap: wrap;
   background: var(--bg-secondary);
+}
+
+.commentWrap {
+  position: relative;
 }
 
 .group {
@@ -107,4 +112,67 @@
 .linkCancel:hover {
   background: var(--bg-panel-hover);
   color: var(--text-primary);
+}
+
+.commentPopover {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  display: flex;
+  gap: 4px;
+  padding: 8px;
+  background: var(--bg-elevated, var(--bg-overlay));
+  border: 1px solid var(--divider);
+  border-radius: 6px;
+  box-shadow: var(--shadow-lg);
+  z-index: 100;
+  min-width: 250px;
+  margin-top: 4px;
+}
+
+.commentInput {
+  flex: 1;
+  padding: 6px 8px;
+  font-size: 0.85rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--divider);
+  border-radius: 4px;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.commentInput:focus {
+  border-color: var(--accent-primary);
+}
+
+.commentSubmit {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.commentSubmit:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.roundSelect {
+  padding: 2px 4px;
+  font-size: 0.78rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--divider);
+  border-radius: 3px;
+  color: var(--text-primary);
+}
+
+.revBtn {
+  width: auto;
+  min-width: 30px;
+  padding: 0 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
 }

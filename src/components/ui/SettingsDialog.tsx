@@ -1,24 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useUIStore } from '../../stores/uiStore';
 import { useProjectStore } from '../../stores/projectStore';
-import type { ProjectLabel } from '../../types';
 import Modal from './Modal';
 import styles from './SettingsDialog.module.css';
+import { formatBytes, getStorageEstimate, requestPersistentStorage, pickBackupDirectory } from '../../utils/backup';
+import type { UseAutoBackupResult } from '../../hooks/useAutoBackup';
 
 interface SettingsDialogProps {
   isOpen: boolean;
   onClose: () => void;
+  autoBackup?: UseAutoBackupResult;
 }
 
-type SettingsTab = 'editor' | 'project' | 'labels' | 'shortcuts' | 'about';
-
-const DEFAULT_LABELS: ProjectLabel[] = [
-  { name: 'Concept', color: '#5b9bd5' },
-  { name: 'Plot', color: '#e67e22' },
-  { name: 'Character', color: '#9b59b6' },
-  { name: 'Setting', color: '#27ae60' },
-  { name: 'Action', color: '#e74c3c' },
-];
+type SettingsTab = 'editor' | 'project' | 'shortcuts' | 'about';
 
 const FONT_OPTIONS = [
   { value: 'Georgia, serif', label: 'Georgia (serif)' },
@@ -31,7 +25,7 @@ const FONT_OPTIONS = [
 
 const SHORTCUTS = [
   { keys: 'Ctrl+Shift+I', action: 'Quick Idea Capture' },
-  { keys: 'Ctrl+B', action: 'Toggle sidebar' },
+  { keys: 'Ctrl+Shift+B', action: 'Toggle sidebar' },
   { keys: 'Ctrl+\\', action: 'Toggle split editor' },
   { keys: 'Ctrl+Shift+T', action: 'Typewriter scroll mode' },
   { keys: 'Ctrl+Shift+Z', action: 'Zen/focus mode' },
@@ -45,8 +39,88 @@ const SHORTCUTS = [
   { keys: 'Escape', action: 'Close panel / exit maximized' },
 ];
 
-export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
+function StorageHealth() {
+  const [estimate, setEstimate] = useState<{ usage: number; quota: number } | null | undefined>(undefined);
+  const [persisted, setPersisted] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [est, isPersisted] = await Promise.all([
+        getStorageEstimate(),
+        navigator.storage?.persisted?.() ?? Promise.resolve(false),
+      ]);
+      if (!cancelled) {
+        setEstimate(est);
+        setPersisted(isPersisted);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handlePersist = async () => {
+    await requestPersistentStorage();
+    const [est, isPersisted] = await Promise.all([
+      getStorageEstimate(),
+      navigator.storage?.persisted?.() ?? Promise.resolve(false),
+    ]);
+    setEstimate(est);
+    setPersisted(isPersisted);
+  };
+
+  const pct =
+    estimate && estimate.quota > 0
+      ? Math.min(100, Math.round((estimate.usage / estimate.quota) * 100))
+      : null;
+
+  return (
+    <div className={styles.storageSection}>
+      <h3 className={styles.storageHeading}>Browser storage</h3>
+      {estimate === undefined && <p className={styles.storageHint}>Loading…</p>}
+      {estimate === null && (
+        <p className={styles.storageHint}>This browser does not report storage usage.</p>
+      )}
+      {estimate && estimate.quota > 0 && (
+        <>
+          <p className={styles.storageStats}>
+            {formatBytes(estimate.usage)} of {formatBytes(estimate.quota)} used
+            {pct !== null && ` (${pct}%)`}
+          </p>
+          <div className={styles.storageBarTrack} role="progressbar" aria-valuenow={pct ?? 0} aria-valuemin={0} aria-valuemax={100}>
+            <div className={styles.storageBarFill} style={{ width: `${pct}%` }} />
+          </div>
+        </>
+      )}
+      {estimate && estimate.quota === 0 && estimate.usage > 0 && (
+        <p className={styles.storageStats}>{formatBytes(estimate.usage)} in use (quota unknown)</p>
+      )}
+      <p className={styles.storagePersist}>
+        {persisted ? (
+          <span className={styles.storagePersistOk}>Persistent storage is granted.</span>
+        ) : (
+          <>
+            <span className={styles.storageHint}>Data may still be cleared if the browser evicts site storage. </span>
+            <button type="button" className={styles.storagePersistBtn} onClick={handlePersist}>
+              Request persistent storage
+            </button>
+          </>
+        )}
+      </p>
+    </div>
+  );
+}
+
+function formatLastBackup(ts: number): string {
+  if (!ts) return 'Never';
+  return new Date(ts).toLocaleString();
+}
+
+export default function SettingsDialog({ isOpen, onClose, autoBackup }: SettingsDialogProps) {
   const [tab, setTab] = useState<SettingsTab>('editor');
+  const [backupUiTick, setBackupUiTick] = useState(0);
+  const bumpBackupUi = useCallback(() => setBackupUiTick((n) => n + 1), []);
   const editorFontFamily = useUIStore((s) => s.editorFontFamily);
   const editorFontSize = useUIStore((s) => s.editorFontSize);
   const wordCountGoal = useUIStore((s) => s.wordCountGoal);
@@ -59,28 +133,6 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
   const setDigitalRain = useUIStore((s) => s.setDigitalRain);
   const activeProject = useProjectStore((s) => s.activeProject);
   const updateProject = useProjectStore((s) => s.updateProject);
-  const [newLabelName, setNewLabelName] = useState('');
-  const [newLabelColor, setNewLabelColor] = useState('#5b9bd5');
-
-  const labels: ProjectLabel[] = activeProject?.settings?.labels || [];
-
-  const addLabel = () => {
-    if (!activeProject?.id || !newLabelName.trim()) return;
-    const updated = [...labels, { name: newLabelName.trim(), color: newLabelColor }];
-    updateProject(activeProject.id, { settings: { ...activeProject.settings, labels: updated } });
-    setNewLabelName('');
-  };
-
-  const removeLabel = (name: string) => {
-    if (!activeProject?.id) return;
-    const updated = labels.filter(l => l.name !== name);
-    updateProject(activeProject.id, { settings: { ...activeProject.settings, labels: updated } });
-  };
-
-  const initDefaults = () => {
-    if (!activeProject?.id) return;
-    updateProject(activeProject.id, { settings: { ...activeProject.settings, labels: DEFAULT_LABELS } });
-  };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Settings" width="560px">
@@ -88,7 +140,6 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
         <div className={styles.tabs}>
           <button className={`${styles.tab} ${tab === 'editor' ? styles.tabActive : ''}`} onClick={() => setTab('editor')}>Editor</button>
           <button className={`${styles.tab} ${tab === 'project' ? styles.tabActive : ''}`} onClick={() => setTab('project')}>Project</button>
-          <button className={`${styles.tab} ${tab === 'labels' ? styles.tabActive : ''}`} onClick={() => setTab('labels')}>Labels</button>
           <button className={`${styles.tab} ${tab === 'shortcuts' ? styles.tabActive : ''}`} onClick={() => setTab('shortcuts')}>Shortcuts</button>
           <button className={`${styles.tab} ${tab === 'about' ? styles.tabActive : ''}`} onClick={() => setTab('about')}>About</button>
         </div>
@@ -106,6 +157,10 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
                   <label className={styles.radio}>
                     <input type="radio" checked={theme === 'matrix'} onChange={() => setTheme('matrix')} />
                     <span>Matrix</span>
+                  </label>
+                  <label className={styles.radio}>
+                    <input type="radio" checked={theme === 'light'} onChange={() => setTheme('light')} />
+                    <span>Clean Light</span>
                   </label>
                 </div>
               </div>
@@ -180,6 +235,10 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
                     <input type="radio" checked={activeProject.settings?.theme === 'matrix'} onChange={() => updateProject(activeProject.id!, { settings: { ...activeProject.settings, theme: 'matrix' } })} />
                     <span>Matrix</span>
                   </label>
+                  <label className={styles.radio}>
+                    <input type="radio" checked={activeProject.settings?.theme === 'light'} onChange={() => updateProject(activeProject.id!, { settings: { ...activeProject.settings, theme: 'light' } })} />
+                    <span>Clean Light</span>
+                  </label>
                 </div>
               </div>
 
@@ -217,39 +276,121 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
                   step={1000}
                 />
               </div>
-            </div>
-          )}
 
-          {tab === 'labels' && (
-            <div className={styles.section}>
-              <p className={styles.labelHint}>Define color labels for your scenes. Labels appear in the binder, corkboard, and outliner.</p>
-              {labels.length === 0 && (
-                <button className={styles.initBtn} onClick={initDefaults}>Load default labels</button>
+              {autoBackup && (
+                <div className={styles.labelsBlock} data-backup-rev={backupUiTick}>
+                  <h4 className={styles.sectionTitle}>Timed backup</h4>
+                  <p className={styles.labelHint}>
+                    Saves a JSON copy of this project to a folder you choose on a timer. The folder permission lasts until you close the tab.
+                  </p>
+                  {!autoBackup.isSupported ? (
+                    <p className={styles.storageHint}>Your browser does not support folder backups. Try Chrome or Edge.</p>
+                  ) : (
+                    <>
+                      <p className={styles.storageStats}>
+                        {autoBackup.hasBackupDirectory ? 'Backup folder is set.' : 'No folder selected — timed backups are paused.'}
+                        {' '}
+                        Last backup: {formatLastBackup(autoBackup.getLastBackupTime())}
+                      </p>
+                      <div className={styles.backupActions}>
+                        <button
+                          type="button"
+                          className={styles.storagePersistBtn}
+                          onClick={async () => {
+                            const h = await pickBackupDirectory();
+                            if (h) {
+                              autoBackup.setBackupDirectory(h);
+                              bumpBackupUi();
+                            }
+                          }}
+                        >
+                          Choose backup folder
+                        </button>
+                        {autoBackup.hasBackupDirectory && (
+                          <>
+                            <button
+                              type="button"
+                              className={styles.backupSecondaryBtn}
+                              onClick={() => {
+                                autoBackup.clearBackupDirectory();
+                                bumpBackupUi();
+                              }}
+                            >
+                              Clear folder
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.storagePersistBtn}
+                              onClick={async () => {
+                                await autoBackup.performBackup();
+                                bumpBackupUi();
+                              }}
+                            >
+                              Back up now
+                            </button>
+                          </>
+                        )}
+                      </div>
+                      <div className={styles.field} style={{ marginTop: 12 }}>
+                        <label className={styles.label}>Backup interval (minutes)</label>
+                        <input
+                          type="number"
+                          className={styles.input}
+                          min={1}
+                          max={1440}
+                          value={autoBackup.intervalMinutes}
+                          onChange={(e) => autoBackup.setIntervalMinutes(Number(e.target.value) || 30)}
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
               )}
-              <div className={styles.labelList}>
-                {labels.map(l => (
-                  <div key={l.name} className={styles.labelRow}>
-                    <span className={styles.labelSwatch} style={{ background: l.color }} />
-                    <span className={styles.labelName}>{l.name}</span>
-                    <button className={styles.labelRemove} onClick={() => removeLabel(l.name)}>×</button>
-                  </div>
-                ))}
-              </div>
-              <div className={styles.labelAdd}>
-                <input
-                  className={styles.input}
-                  value={newLabelName}
-                  onChange={e => setNewLabelName(e.target.value)}
-                  placeholder="Label name"
-                  onKeyDown={e => { if (e.key === 'Enter') addLabel(); }}
-                />
-                <input
-                  type="color"
-                  value={newLabelColor}
-                  onChange={e => setNewLabelColor(e.target.value)}
-                  className={styles.colorPicker}
-                />
-                <button className={styles.addBtn} onClick={addLabel} disabled={!newLabelName.trim()}>Add</button>
+
+              <div className={styles.labelsBlock}>
+                <h4 className={styles.sectionTitle}>Labels</h4>
+                <p className={styles.labelHint}>Used in the binder, corkboard, and outliner. Press Enter to add a label; colors cycle automatically.</p>
+                <div className={styles.labelList}>
+                  {(activeProject.settings?.labels || []).map((label, i) => (
+                    <div key={i} className={styles.labelItem}>
+                      <span className={styles.labelDot} style={{ background: label.color }} />
+                      <span>{label.name}</span>
+                      <button
+                        type="button"
+                        className={styles.labelRemove}
+                        onClick={() => {
+                          const labels = [...(activeProject.settings?.labels || [])];
+                          labels.splice(i, 1);
+                          if (activeProject.id) {
+                            updateProject(activeProject.id, { settings: { ...activeProject.settings, labels } });
+                          }
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className={styles.labelAdd}>
+                  <input
+                    className={styles.labelInput}
+                    placeholder="New label name..."
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const name = (e.target as HTMLInputElement).value.trim();
+                        if (name && activeProject.id) {
+                          const colors = ['#e55555', '#d4a745', '#4aa86a', '#4488cc', '#8844cc', '#cc5599'];
+                          const labels = [
+                            ...(activeProject.settings?.labels || []),
+                            { name, color: colors[(activeProject.settings?.labels || []).length % colors.length] },
+                          ];
+                          updateProject(activeProject.id, { settings: { ...activeProject.settings, labels } });
+                          (e.target as HTMLInputElement).value = '';
+                        }
+                      }
+                    }}
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -287,6 +428,7 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
                 <span>d3-force</span>
                 <span>Framer Motion</span>
               </div>
+              <StorageHealth />
             </div>
           )}
         </div>

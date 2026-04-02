@@ -79,31 +79,41 @@ export default function QuickCapture() {
             }
             transition={{ duration: 0.2, ease: 'easeOut' }}
           >
-            {theme === 'matrix' && (
-              <div className={styles.matrixPrompt}>
-                <span className={styles.promptChar}>&gt;</span>
-                <span className={styles.promptLabel}>CAPTURE_THREAD</span>
+            <div className={styles.captureInner}>
+              {theme === 'matrix' && (
+                <div className={styles.matrixPrompt}>
+                  <span className={styles.promptChar}>&gt;</span>
+                  <span className={styles.promptLabel}>CAPTURE_THREAD</span>
+                </div>
+              )}
+              {theme === 'lain' && (
+                <div className={styles.lainHeader}>
+                  <span>Capture an idea</span>
+                </div>
+              )}
+              <button
+                type="button"
+                className={styles.closeBtn}
+                onClick={() => setOpen(false)}
+                aria-label="Close"
+              >
+                ×
+              </button>
+              <div className={styles.inputArea}>
+                <input
+                  ref={inputRef}
+                  type="text"
+                  className={styles.input}
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder={theme === 'matrix' ? 'enter thought...' : 'What comes to mind?'}
+                />
               </div>
-            )}
-            {theme === 'lain' && (
-              <div className={styles.lainHeader}>
-                <span>Capture an idea</span>
+              <div className={styles.hint}>
+                <span>Press Enter to save</span>
+                <span>Use #tags for categories</span>
               </div>
-            )}
-            <div className={styles.inputArea}>
-              <input
-                ref={inputRef}
-                type="text"
-                className={styles.input}
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={theme === 'matrix' ? 'enter thought...' : 'What comes to mind?'}
-              />
-            </div>
-            <div className={styles.hint}>
-              <span>Press Enter to save</span>
-              <span>Use #tags for categories</span>
             </div>
           </motion.div>
         </>

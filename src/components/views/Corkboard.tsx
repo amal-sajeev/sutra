@@ -34,6 +34,7 @@ export default function Corkboard() {
   const activeProject = useProjectStore(s => s.activeProject);
 
   const [filter, setFilter] = useState<number | 'all'>('all');
+  const [cardSize, setCardSize] = useState<'small' | 'medium' | 'large'>('medium');
   const [editSynopsis, setEditSynopsis] = useState<number | null>(null);
   const [synopsisText, setSynopsisText] = useState('');
   const dragItem = useRef<{ id: number; chapterId: number } | null>(null);
@@ -84,16 +85,60 @@ export default function Corkboard() {
     <div className={styles.container}>
       <div className={styles.header}>
         <h2 className={styles.title}>Corkboard</h2>
-        <select
-          className={styles.filterSelect}
-          value={filter === 'all' ? 'all' : String(filter)}
-          onChange={e => setFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-        >
-          <option value="all">All chapters</option>
-          {sortedChapters.map(c => (
-            <option key={c.id} value={c.id}>{c.title}</option>
-          ))}
-        </select>
+        <div className={styles.headerRight}>
+          <div className={styles.headerControlsRow}>
+            <select
+              className={styles.filterSelect}
+              value={filter === 'all' ? 'all' : String(filter)}
+              onChange={e => setFilter(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+            >
+              <option value="all">All chapters</option>
+              {sortedChapters.map(c => (
+                <option key={c.id} value={c.id}>{c.title}</option>
+              ))}
+            </select>
+            <div className={styles.sizeToggle}>
+              <button
+                type="button"
+                className={`${styles.sizeBtn} ${cardSize === 'small' ? styles.active : ''}`}
+                onClick={() => setCardSize('small')}
+                title="Small cards"
+              >
+                S
+              </button>
+              <button
+                type="button"
+                className={`${styles.sizeBtn} ${cardSize === 'medium' ? styles.active : ''}`}
+                onClick={() => setCardSize('medium')}
+                title="Medium cards"
+              >
+                M
+              </button>
+              <button
+                type="button"
+                className={`${styles.sizeBtn} ${cardSize === 'large' ? styles.active : ''}`}
+                onClick={() => setCardSize('large')}
+                title="Large cards"
+              >
+                L
+              </button>
+            </div>
+          </div>
+          <div className={styles.legend}>
+            <span className={styles.legendItem}>
+              <span className={styles.legendDot} style={{ background: STATUS_COLORS.draft }} />
+              Draft
+            </span>
+            <span className={styles.legendItem}>
+              <span className={styles.legendDot} style={{ background: STATUS_COLORS.revision }} />
+              Revision
+            </span>
+            <span className={styles.legendItem}>
+              <span className={styles.legendDot} style={{ background: STATUS_COLORS.final }} />
+              Final
+            </span>
+          </div>
+        </div>
       </div>
 
       {activeProject && filteredScenes.length === 0 && (
@@ -102,7 +147,7 @@ export default function Corkboard() {
         </div>
       )}
 
-      <div className={styles.board}>
+      <div className={`${styles.board} ${styles[`board_${cardSize}`]}`}>
         {filteredScenes.map(scene => {
           const wc = wordCount(scene.content);
           const labelColor = scene.label

@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import type { ReactNode } from 'react';
+import { type ReactNode, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import styles from './Modal.module.css';
 
 interface ModalProps {
@@ -11,7 +12,25 @@ interface ModalProps {
 }
 
 export default function Modal({ isOpen, onClose, title, children, width = '480px' }: ModalProps) {
-  return (
+  // Lock body scroll while modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [isOpen]);
+
+  // Close on Escape key
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [isOpen, onClose]);
+
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <motion.div
@@ -44,6 +63,7 @@ export default function Modal({ isOpen, onClose, title, children, width = '480px
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }

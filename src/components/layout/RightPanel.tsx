@@ -4,6 +4,7 @@ import VonnegutTimeline from '../timeline/VonnegutTimeline';
 import IdeaConstellation from '../constellation/IdeaConstellation';
 import CharacterWeb from '../characters/CharacterWeb';
 import SnapshotBrowser from '../project/SnapshotBrowser';
+import NameGenerator from '../ui/NameGenerator';
 
 export default function RightPanel() {
   const rightPanel = useUIStore((s) => s.rightPanel);
@@ -32,6 +33,8 @@ export default function RightPanel() {
       return <CharacterWeb />;
     case 'snapshots':
       return <SnapshotBrowser />;
+    case 'nameGenerator':
+      return <NameGenerator />;
     default:
       return null;
   }

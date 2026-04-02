@@ -151,7 +151,7 @@ export default function IdeaConstellation() {
           <span className={styles.title}>Idea Constellation</span>
           <PanelMaxBtn />
         </div>
-        <span className={styles.count}>{ideas.length} threads</span>
+        <span className={styles.count}>{ideas.length} ideas</span>
       </div>
 
       <div className={styles.svgWrap} ref={containerRef}>
@@ -254,6 +254,15 @@ export default function IdeaConstellation() {
                 opacity={isHovered || isSelected ? 1 : 0.8}
                 filter="url(#glow)"
               />
+              <text
+                y={px(16)}
+                textAnchor="middle"
+                fill="var(--text-secondary)"
+                fontSize={px(10)}
+                opacity={0.7}
+              >
+                {node.idea.content.slice(0, 20)}{node.idea.content.length > 20 ? '...' : ''}
+              </text>
             </g>
           );
         })}

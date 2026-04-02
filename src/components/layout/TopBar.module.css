@@ -65,6 +65,29 @@
   color: var(--text-primary);
 }
 
+.iconBtn.active {
+  color: var(--accent-primary);
+  background: var(--accent-glow);
+}
+
+.exportBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--bg-primary);
+  background: var(--accent-primary);
+  border-radius: 5px;
+  transition: all var(--transition-fast);
+}
+
+.exportBtn:hover {
+  opacity: 0.9;
+  box-shadow: var(--shadow-glow);
+}
+
 .projectTitle {
   font-size: 1rem;
   font-weight: 600;

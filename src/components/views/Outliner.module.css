@@ -21,6 +21,14 @@
   color: var(--text-primary);
 }
 
+.headerControls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .filterSelect {
   padding: 5px 10px;
   font-size: 0.82rem;
@@ -29,6 +37,41 @@
   border-radius: 4px;
   color: var(--text-primary);
   outline: none;
+}
+
+.groupToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.groupToggle input {
+  accent-color: var(--accent-primary);
+}
+
+.chapterRow {
+  background: var(--bg-tertiary);
+}
+
+.chapterRowCell {
+  padding: 8px 12px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.chapterRowCount {
+  font-weight: 400;
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  margin-left: 8px;
+  text-transform: none;
+  letter-spacing: normal;
 }
 
 .empty {
@@ -107,6 +150,21 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.synopsisInput {
+  width: 100%;
+  padding: 2px 4px;
+  font-size: 0.82rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--accent-primary);
+  border-radius: 3px;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.synopsisText {
+  cursor: text;
 }
 
 .numCell {
