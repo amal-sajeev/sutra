@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
 import { isBackupWarningDismissed, dismissBackupWarning, requestPersistentStorage } from '../../utils/backup';
+import { useToastStore } from '../../stores/toastStore';
 import styles from './BackupWarning.module.css';
 
 export default function BackupWarning() {
   const [visible, setVisible] = useState(() => !isBackupWarningDismissed());
   const [persisted, setPersisted] = useState(false);
+  const [requesting, setRequesting] = useState(false);
+  const addToast = useToastStore(s => s.addToast);
 
   useEffect(() => {
     void navigator.storage?.persisted?.().then((p) => setPersisted(p));
@@ -18,8 +21,20 @@ export default function BackupWarning() {
   };
 
   const handlePersist = async () => {
-    const result = await requestPersistentStorage();
-    setPersisted(result);
+    setRequesting(true);
+    try {
+      const result = await requestPersistentStorage();
+      setPersisted(result);
+      if (result) {
+        addToast('Persistent storage enabled — your data is protected from automatic eviction.', 'success');
+      } else {
+        addToast('Browser denied persistent storage. Try bookmarking the site or adding it to your home screen, then try again.', 'error', 6000);
+      }
+    } catch {
+      addToast('Failed to request persistent storage.', 'error');
+    } finally {
+      setRequesting(false);
+    }
   };
 
   return (
@@ -37,11 +52,11 @@ export default function BackupWarning() {
         </div>
         <div className={styles.actions}>
           {!persisted && (
-            <button type="button" className={styles.persistBtn} onClick={handlePersist}>
-              Enable Persistent Storage
+            <button type="button" className={styles.persistBtn} onClick={handlePersist} disabled={requesting}>
+              {requesting ? 'Requesting…' : 'Enable Persistent Storage'}
             </button>
           )}
-          {persisted && <span className={styles.persistOk}>Storage is persistent</span>}
+          {persisted && <span className={styles.persistOk}>Storage is persistent ✓</span>}
           <button type="button" className={styles.dismissBtn} onClick={handleDismiss}>
             Dismiss
           </button>

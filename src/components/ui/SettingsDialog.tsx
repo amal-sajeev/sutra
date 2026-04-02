@@ -4,6 +4,7 @@ import { useProjectStore } from '../../stores/projectStore';
 import Modal from './Modal';
 import styles from './SettingsDialog.module.css';
 import { formatBytes, getStorageEstimate, requestPersistentStorage, pickBackupDirectory } from '../../utils/backup';
+import { useToastStore } from '../../stores/toastStore';
 import type { UseAutoBackupResult } from '../../hooks/useAutoBackup';
 
 interface SettingsDialogProps {
@@ -60,14 +61,21 @@ function StorageHealth() {
     };
   }, []);
 
+  const addToast = useToastStore(s => s.addToast);
+
   const handlePersist = async () => {
-    await requestPersistentStorage();
+    const result = await requestPersistentStorage();
     const [est, isPersisted] = await Promise.all([
       getStorageEstimate(),
       navigator.storage?.persisted?.() ?? Promise.resolve(false),
     ]);
     setEstimate(est);
     setPersisted(isPersisted);
+    if (result || isPersisted) {
+      addToast('Persistent storage enabled.', 'success');
+    } else {
+      addToast('Browser denied persistent storage. Try bookmarking the site or installing it as a PWA, then try again.', 'error', 6000);
+    }
   };
 
   const pct =
